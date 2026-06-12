@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: open-sch-yachal-backend
+    runtime: node
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        fromDatabase:
+          name: open-school-db
+          property: connectionString
+      - key: PORT
+        value: 10000
+      - key: CLIENT_URL
+        value: https://open-sch-yachal.onrender.com
+      - key: ADMIN_TOKEN
+        sync: false
+
+  - type: web
+    name: open-sch-yachal-client
+    runtime: static site
+    buildCommand: cd client && npm install && npm run build
+    staticPublishPath: client/dist
+
+databases:
+  - name: open-school-db
+    plan: free
