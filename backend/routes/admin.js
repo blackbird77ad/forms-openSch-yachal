@@ -18,7 +18,7 @@ router.use((req, res, next) => {
 router.get('/registrations', async (req, res) => {
   try {
     const registrations = await registrationStore.findAllNewestFirst();
-    res.json({ registrations });
+    res.json({ registrations, storage: registrationStore.getStoreMode() });
   } catch (error) {
     if (error.statusCode === 503) {
       return res.status(503).json({ message: error.message });

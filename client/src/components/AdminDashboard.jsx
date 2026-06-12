@@ -16,6 +16,7 @@ export default function AdminDashboard() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [storage, setStorage] = useState('');
 
   const loadRegistrations = async () => {
     setLoading(true);
@@ -34,7 +35,9 @@ export default function AdminDashboard() {
       }
 
       setRegistrations(data.registrations || []);
-      setMessage(`Loaded ${data.registrations.length} registrations.`);
+      setStorage(data.storage || '');
+      const storageLabel = data.storage === 'file' ? 'local file storage' : data.storage === 'mongo' ? 'MongoDB' : 'storage';
+      setMessage(`Loaded ${data.registrations.length} registrations from ${storageLabel}.`);
     } catch (loadError) {
       setError('Unable to reach the server.');
       console.error(loadError);
@@ -82,6 +85,11 @@ export default function AdminDashboard() {
 
       {error && <div className="alert">{error}</div>}
       {message && <div className="note">{message}</div>}
+      {storage === 'file' && (
+        <div className="storage-warning">
+          Local development is using <strong>registrations.local.json</strong>. These records will not appear in MongoDB Compass or the production admin dashboard.
+        </div>
+      )}
 
       <div className="form-grid two-col">
         <div>
@@ -115,6 +123,11 @@ export default function AdminDashboard() {
             </tr>
           </thead>
           <tbody>
+            {!loading && registrations.length === 0 && (
+              <tr>
+                <td className="empty-table" colSpan="9">No registrations loaded from this data source.</td>
+              </tr>
+            )}
             {registrations.map((item) => (
               <tr key={item._id}>
                 <td>{item.fullName}</td>

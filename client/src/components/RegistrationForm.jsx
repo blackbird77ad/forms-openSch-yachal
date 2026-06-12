@@ -23,6 +23,7 @@ export default function RegistrationForm() {
   const [transactionId, setTransactionId] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [step, setStep] = useState('form');
+  const [copyStatus, setCopyStatus] = useState('idle');
 
   const isMomo = registration ? registration.paymentMethod === 'momo' : form.paymentMethod === 'momo';
   const amountGhs = (USD_AMOUNT * USD_TO_GHS).toFixed(2);
@@ -126,8 +127,17 @@ export default function RegistrationForm() {
 
   const copyReference = async () => {
     if (!registration?.momoReference) return;
-    await navigator.clipboard.writeText(registration.momoReference);
-    setMessage('Momo payment reference copied to clipboard.');
+
+    try {
+      await navigator.clipboard.writeText(registration.momoReference);
+      setCopyStatus('copied');
+      setError('');
+      window.setTimeout(() => setCopyStatus('idle'), 3000);
+    } catch (copyError) {
+      setCopyStatus('error');
+      setError('Unable to copy automatically. Press and hold the reference to copy it manually.');
+      console.error(copyError);
+    }
   };
 
   return (
@@ -247,12 +257,20 @@ export default function RegistrationForm() {
               <div>
                 <h3>Copy your payment reference</h3>
                 <p>You must use this exact reference as the payment reference when sending the Momo payment.</p>
-                <div className="reference-box">
+                <div className={`reference-box ${copyStatus === 'copied' ? 'copied' : ''}`}>
                   <strong>{registration.momoReference}</strong>
-                  <button className="action-button copy-button" type="button" onClick={copyReference}>
-                    Copy reference
+                  <button
+                    className={`action-button copy-button ${copyStatus === 'copied' ? 'copied' : ''}`}
+                    type="button"
+                    onClick={copyReference}
+                    aria-live="polite"
+                  >
+                    {copyStatus === 'copied' ? 'Copied successfully' : 'Copy reference'}
                   </button>
                 </div>
+                {copyStatus === 'copied' && (
+                  <p className="copy-success" role="status">Reference copied. Paste it into the Momo payment reference field.</p>
+                )}
               </div>
             </li>
 

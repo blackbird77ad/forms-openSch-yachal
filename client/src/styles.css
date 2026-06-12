@@ -445,8 +445,40 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+.reference-box.copied {
+  border-color: #16a34a;
+  background: #f0fdf4;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
+}
+
 .copy-button {
   flex: 0 0 auto;
+}
+
+.copy-button.copied,
+.copy-button.copied:hover {
+  background: #15803d;
+}
+
+.payment-guide-card .copy-success {
+  margin: 8px 0 0;
+  color: #15803d;
+  font-weight: 700;
+}
+
+.storage-warning {
+  margin: 14px 0;
+  padding: 12px 16px;
+  border-left: 4px solid #d97706;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+  line-height: 1.5;
+}
+
+.empty-table {
+  color: #64748b;
+  text-align: center;
 }
 
 .payment-summary {
