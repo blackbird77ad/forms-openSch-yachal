@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const API_BASE = import.meta.env.PROD ? '' : import.meta.env.VITE_API_BASE || 'http://localhost:4001';
 const ADMIN_TOKEN_KEY = 'open-school-admin-token';
+const ADMIN_VIEW_KEY = 'open-school-admin-view';
 const RETRYABLE_STATUSES = new Set([502, 503, 504]);
+const PAGE_SIZE = 16;
 
 function wait(milliseconds) {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
@@ -85,6 +87,44 @@ export default function AdminDashboard() {
   const [editForm, setEditForm] = useState(null);
   const [loadingStatus, setLoadingStatus] = useState('');
   const [capabilities, setCapabilities] = useState({});
+  const [viewType, setViewType] = useState(() => window.localStorage.getItem(ADMIN_VIEW_KEY) || 'grid');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchField, setSearchField] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [paymentFilter, setPaymentFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('newest');
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const filteredRegistrations = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    const searchableFields = {
+      name: (item) => item.fullName,
+      email: (item) => item.email,
+      church: (item) => item.church,
+    };
+
+    const filtered = registrations.filter((item) => {
+      const matchesSearch = !query || (searchField === 'all'
+        ? [item.fullName, item.email, item.church].some((value) => String(value || '').toLowerCase().includes(query))
+        : String(searchableFields[searchField]?.(item) || '').toLowerCase().includes(query));
+      const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
+      const matchesPayment = paymentFilter === 'all' || item.paymentMethod === paymentFilter;
+      return matchesSearch && matchesStatus && matchesPayment;
+    });
+
+    return filtered.sort((a, b) => {
+      if (sortBy === 'oldest') return new Date(a.createdAt) - new Date(b.createdAt);
+      if (sortBy === 'name') return String(a.fullName).localeCompare(String(b.fullName));
+      if (sortBy === 'email') return String(a.email).localeCompare(String(b.email));
+      if (sortBy === 'church') return String(a.church || '').localeCompare(String(b.church || ''));
+      if (sortBy === 'status') return String(a.status).localeCompare(String(b.status));
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+  }, [registrations, searchTerm, searchField, statusFilter, paymentFilter, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRegistrations.length / PAGE_SIZE));
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const visibleRegistrations = filteredRegistrations.slice(pageStart, pageStart + PAGE_SIZE);
 
   const loadRegistrations = useCallback(async ({ silent = false } = {}) => {
     const adminToken = token.trim();
@@ -147,6 +187,27 @@ export default function AdminDashboard() {
     }, 60000);
     return () => window.clearInterval(interval);
   }, [hasLoaded, loadRegistrations]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, searchField, statusFilter, paymentFilter, sortBy]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  const changeView = (nextView) => {
+    setViewType(nextView);
+    window.localStorage.setItem(ADMIN_VIEW_KEY, nextView);
+  };
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSearchField('all');
+    setStatusFilter('all');
+    setPaymentFilter('all');
+    setSortBy('newest');
+  };
 
   const confirmPayment = async (registration) => {
     setConfirmingId(registration._id);
@@ -302,7 +363,7 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="panel">
+    <div className="panel admin-panel">
       <h2>Admin dashboard</h2>
       <p>Use your admin token to load registrations and download the CSV export.</p>
 
@@ -337,6 +398,77 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {hasLoaded && registrations.length > 0 && (
+        <section className="admin-toolbar" aria-label="Registration search and display controls">
+          <div className="admin-search-group">
+            <label htmlFor="registrationSearch">Find a registration</label>
+            <div className="search-row">
+              <select value={searchField} onChange={(event) => setSearchField(event.target.value)} aria-label="Choose search field">
+                <option value="all">Name, email or church</option>
+                <option value="name">Name only</option>
+                <option value="email">Email only</option>
+                <option value="church">Church only</option>
+              </select>
+              <input
+                id="registrationSearch"
+                type="search"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Type a name, email or church"
+              />
+            </div>
+          </div>
+
+          <div className="admin-filter-grid">
+            <div>
+              <label htmlFor="statusFilter">Payment status</label>
+              <select id="statusFilter" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                <option value="all">All statuses</option>
+                <option value="awaiting-momo-payment">Awaiting Momo payment</option>
+                <option value="momo-review-pending">Momo awaiting review</option>
+                <option value="momo-paid">Momo paid</option>
+                <option value="cash-pending">Cash pending</option>
+                <option value="cash-paid">Cash paid</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="paymentFilter">Payment method</label>
+              <select id="paymentFilter" value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value)}>
+                <option value="all">All methods</option>
+                <option value="momo">Momo</option>
+                <option value="cash">Cash</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="sortRegistrations">Sort registrations</label>
+              <select id="sortRegistrations" value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="name">Name A-Z</option>
+                <option value="email">Email A-Z</option>
+                <option value="church">Church A-Z</option>
+                <option value="status">Status A-Z</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="toolbar-footer">
+            <div className="view-toggle" role="group" aria-label="Choose registration view">
+              <button className={viewType === 'grid' ? 'active' : ''} type="button" onClick={() => changeView('grid')}>Grid view</button>
+              <button className={viewType === 'list' ? 'active' : ''} type="button" onClick={() => changeView('list')}>List view</button>
+            </div>
+            <button className="secondary-button clear-filters-button" type="button" onClick={clearFilters}>Clear search and filters</button>
+          </div>
+        </section>
+      )}
+
+      {hasLoaded && registrations.length > 0 && (
+        <div className="results-summary" role="status">
+          Showing <strong>{filteredRegistrations.length}</strong> matching registration{filteredRegistrations.length === 1 ? '' : 's'}.
+          {' '}Page {currentPage} of {totalPages}.
+        </div>
+      )}
+
       {hasLoaded && !loading && registrations.length === 0 && (
         <div className="empty-registrations">
           <h3>No registrations yet</h3>
@@ -344,18 +476,25 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <div className="registration-grid">
-        {registrations.map((item, index) => {
+      {hasLoaded && registrations.length > 0 && filteredRegistrations.length === 0 && (
+        <div className="empty-registrations">
+          <h3>No matching registrations</h3>
+          <p>Try clearing the search or choosing different filters.</p>
+        </div>
+      )}
+
+      <div className={`registration-results registration-${viewType}`}>
+        {visibleRegistrations.map((item, index) => {
           const isEditing = editingId === item._id;
           const isPaid = item.status.includes('paid');
           const canConfirm = capabilities.confirmPayment
             && (item.status === 'momo-review-pending' || item.status === 'cash-pending');
 
           return (
-            <article className={`registration-card ${isPaid ? 'registration-card-paid' : 'registration-card-pending'}`} key={item._id}>
+            <article className={`registration-card ${isPaid ? 'registration-card-paid' : 'registration-card-pending'} ${isEditing ? 'registration-card-editing' : ''}`} key={item._id}>
               <header className="registration-card-header">
                 <div>
-                  <p className="registration-number">Registration {index + 1}</p>
+                  <p className="registration-number">Registration {pageStart + index + 1}</p>
                   <h3>{item.fullName}</h3>
                   <p className="submitted-date">Submitted {formatSubmittedDate(item.createdAt)}</p>
                 </div>
@@ -477,6 +616,28 @@ export default function AdminDashboard() {
           );
         })}
       </div>
+
+      {hasLoaded && filteredRegistrations.length > PAGE_SIZE && (
+        <nav className="pagination" aria-label="Registration pages">
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+            disabled={currentPage === 1}
+          >
+            Previous page
+          </button>
+          <span>Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong></span>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next page
+          </button>
+        </nav>
+      )}
     </div>
   );
 }
