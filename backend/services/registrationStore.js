@@ -111,6 +111,7 @@ function toLocalRegistration(data) {
     momoReference: data.momoReference,
     momoTransactionId: data.momoTransactionId,
     status: data.status,
+    paymentReviewedAt: data.paymentReviewedAt,
     createdAt: now,
     updatedAt: now,
   };
@@ -129,6 +130,7 @@ function toMongoRegistrationData(item) {
     momoReference: item.momoReference,
     momoTransactionId: item.momoTransactionId,
     status: item.status,
+    paymentReviewedAt: item.paymentReviewedAt,
   };
 }
 
@@ -294,6 +296,7 @@ async function submitMomoPayment({ email, momoReference, momoTransactionId }) {
 
     registration.momoTransactionId = momoTransactionId.trim();
     registration.status = 'momo-review-pending';
+    registration.paymentReviewedAt = null;
     await registration.save();
     await mirrorRegistrationLocally(registration);
     return registration;
@@ -317,6 +320,7 @@ async function submitMomoPayment({ email, momoReference, momoTransactionId }) {
     ...registrations[index],
     momoTransactionId: momoTransactionId.trim(),
     status: 'momo-review-pending',
+    paymentReviewedAt: null,
     updatedAt: new Date().toISOString(),
   };
 
@@ -324,7 +328,13 @@ async function submitMomoPayment({ email, momoReference, momoTransactionId }) {
   return registrations[index];
 }
 
-async function confirmPayment(id) {
+async function reviewPayment(id, decision) {
+  if (!['confirmed', 'not-confirmed'].includes(decision)) {
+    const error = new Error('Choose whether the payment was received or not received.');
+    error.statusCode = 400;
+    throw error;
+  }
+
   const mode = getStoreMode();
   if (mode === 'mongo') {
     const registration = await Registration.findById(id);
@@ -335,7 +345,9 @@ async function confirmPayment(id) {
       throw error;
     }
 
-    if (registration.paymentMethod === 'momo') {
+    if (decision === 'not-confirmed') {
+      registration.status = 'payment-not-confirmed';
+    } else if (registration.paymentMethod === 'momo') {
       if (!registration.momoTransactionId) {
         const error = new Error('A momo transaction ID is required before payment can be confirmed.');
         error.statusCode = 409;
@@ -346,6 +358,7 @@ async function confirmPayment(id) {
       registration.status = 'cash-paid';
     }
 
+    registration.paymentReviewedAt = new Date();
     await registration.save();
     await mirrorRegistrationLocally(registration);
     return registration;
@@ -363,7 +376,7 @@ async function confirmPayment(id) {
     throw error;
   }
 
-  if (registrations[index].paymentMethod === 'momo' && !registrations[index].momoTransactionId) {
+  if (decision === 'confirmed' && registrations[index].paymentMethod === 'momo' && !registrations[index].momoTransactionId) {
     const error = new Error('A momo transaction ID is required before payment can be confirmed.');
     error.statusCode = 409;
     throw error;
@@ -371,12 +384,19 @@ async function confirmPayment(id) {
 
   registrations[index] = {
     ...registrations[index],
-    status: registrations[index].paymentMethod === 'momo' ? 'momo-paid' : 'cash-paid',
+    status: decision === 'not-confirmed'
+      ? 'payment-not-confirmed'
+      : registrations[index].paymentMethod === 'momo' ? 'momo-paid' : 'cash-paid',
+    paymentReviewedAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
 
   await writeLocalRegistrations(registrations);
   return registrations[index];
+}
+
+function confirmPayment(id) {
+  return reviewPayment(id, 'confirmed');
 }
 
 async function runLocalSync() {
@@ -438,6 +458,7 @@ module.exports = {
   findOne,
   getStoreMode,
   confirmPayment,
+  reviewPayment,
   submitMomoPayment,
   syncLocalRegistrationsToMongo,
   updateById,

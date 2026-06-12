@@ -202,8 +202,28 @@ function sendSlotConfirmation(registration, options) {
     text: [
       `Hello ${registration.fullName},`,
       '',
-      'Your payment has been confirmed and your slot for the Open School of Ministry Ghana center is secured.',
+      'Your payment has been confirmed and your slot for the Open School of Ministry Ghana center is reserved.',
       'The Ghana center is at Yachal House, Ridge Accra.',
+      '',
+      `For assistance, contact ${SUPPORT_PHONE}.`,
+    ].join('\n'),
+  });
+}
+
+function sendPaymentNotConfirmed(registration, options) {
+  const paymentDescription = registration.paymentMethod === 'momo'
+    ? `Momo payment with transaction ID ${registration.momoTransactionId || 'not provided'}`
+    : 'cash payment';
+
+  return sendEmail({
+    to: registration.email,
+    subject: 'Payment not confirmed - action required',
+    idempotencyKey: createIdempotencyKey(`payment-not-confirmed-${registration._id}`, options),
+    text: [
+      `Hello ${registration.fullName},`,
+      '',
+      `We could not confirm your ${paymentDescription}. Your slot has not been reserved yet.`,
+      'Please send your payment proof or Momo transaction ID and contact the Facilitator on 0544600600.',
       '',
       `For assistance, contact ${SUPPORT_PHONE}.`,
     ].join('\n'),
@@ -217,5 +237,6 @@ module.exports = {
   sendAdminTestEmail,
   sendMomoPaymentReviewNotification,
   sendRegistrationNotification,
+  sendPaymentNotConfirmed,
   sendSlotConfirmation,
 };

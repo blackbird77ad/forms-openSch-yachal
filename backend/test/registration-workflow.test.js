@@ -117,12 +117,29 @@ test('Momo registration waits for admin review before becoming paid', async (t) 
     emailDiagnostics: true,
     readRegistration: true,
     resendEmails: true,
+    reviewPayment: true,
     updateRegistration: true,
   });
 
+  const rejectResponse = await fetch(
+    `${baseUrl}/api/admin/registrations/${created.registration._id}/review-payment`,
+    {
+      method: 'POST',
+      headers: { ...adminHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decision: 'not-confirmed' }),
+    }
+  );
+  assert.equal(rejectResponse.status, 200);
+  const rejected = await rejectResponse.json();
+  assert.equal(rejected.registration.status, 'payment-not-confirmed');
+
   const confirmResponse = await fetch(
-    `${baseUrl}/api/admin/registrations/${created.registration._id}/confirm-payment`,
-    { method: 'POST', headers: adminHeaders }
+    `${baseUrl}/api/admin/registrations/${created.registration._id}/review-payment`,
+    {
+      method: 'POST',
+      headers: { ...adminHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decision: 'confirmed' }),
+    }
   );
   assert.equal(confirmResponse.status, 200);
   const confirmed = await confirmResponse.json();
@@ -133,6 +150,53 @@ test('Momo registration waits for admin review before becoming paid', async (t) 
     { method: 'POST', headers: adminHeaders }
   );
   assert.equal(duplicateConfirmResponse.status, 409);
+
+  const cashCreatedResponse = await fetch(`${baseUrl}/api/registrations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      fullName: 'Cash Workflow Test',
+      email: 'cash-workflow@example.com',
+      phone: '0240000000',
+      country: 'Ghana',
+      church: 'Yachal House',
+      churchRole: 'Member',
+      paymentMethod: 'cash',
+    }),
+  });
+  assert.equal(cashCreatedResponse.status, 201);
+  const cashCreated = await cashCreatedResponse.json();
+  assert.equal(cashCreated.registration.status, 'cash-pending');
+
+  const cashRejectedResponse = await fetch(
+    `${baseUrl}/api/admin/registrations/${cashCreated.registration._id}/review-payment`,
+    {
+      method: 'POST',
+      headers: { ...adminHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decision: 'not-confirmed' }),
+    }
+  );
+  assert.equal(cashRejectedResponse.status, 200);
+  const cashRejected = await cashRejectedResponse.json();
+  assert.equal(cashRejected.registration.status, 'payment-not-confirmed');
+
+  const cashConfirmedResponse = await fetch(
+    `${baseUrl}/api/admin/registrations/${cashCreated.registration._id}/review-payment`,
+    {
+      method: 'POST',
+      headers: { ...adminHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decision: 'confirmed' }),
+    }
+  );
+  assert.equal(cashConfirmedResponse.status, 200);
+  const cashConfirmed = await cashConfirmedResponse.json();
+  assert.equal(cashConfirmed.registration.status, 'cash-paid');
+
+  const cashDeleteResponse = await fetch(
+    `${baseUrl}/api/admin/registrations/${cashCreated.registration._id}`,
+    { method: 'DELETE', headers: adminHeaders }
+  );
+  assert.equal(cashDeleteResponse.status, 200);
 
   const unauthorizedDeleteResponse = await fetch(
     `${baseUrl}/api/admin/registrations/${created.registration._id}`,
@@ -193,6 +257,7 @@ test('emails target both admins and the applicant at each stage', async (t) => {
   await emailNotifier.sendMomoPaymentReviewNotification(registration);
   await emailNotifier.sendApplicantPaymentReviewReceipt(registration);
   await emailNotifier.sendSlotConfirmation(registration);
+  await emailNotifier.sendPaymentNotConfirmed(registration);
 
   const admins = ['maamekrakuezoom@gmail.com', 'blackbird77ad@gmail.com'];
   assert.deepEqual(calls[0].body.to, admins);
@@ -200,6 +265,8 @@ test('emails target both admins and the applicant at each stage', async (t) => {
   assert.deepEqual(calls[2].body.to, admins);
   assert.deepEqual(calls[3].body.to, ['applicant@example.com']);
   assert.deepEqual(calls[4].body.to, ['applicant@example.com']);
+  assert.deepEqual(calls[5].body.to, ['applicant@example.com']);
+  assert.match(calls[5].body.text, /0544600600/);
   assert.ok(calls.every((call) => call.url === 'https://api.resend.com/emails'));
 });
 

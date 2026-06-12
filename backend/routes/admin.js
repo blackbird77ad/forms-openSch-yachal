@@ -7,6 +7,7 @@ const {
   sendApplicantRegistrationReceipt,
   sendAdminTestEmail,
   sendMomoPaymentReviewNotification,
+  sendPaymentNotConfirmed,
   sendRegistrationNotification,
   sendSlotConfirmation,
 } = require('../services/emailNotifier');
@@ -166,6 +167,7 @@ router.get('/registrations', async (req, res) => {
         emailDiagnostics: true,
         readRegistration: true,
         resendEmails: true,
+        reviewPayment: true,
         updateRegistration: true,
       },
     });
@@ -217,6 +219,9 @@ router.post('/registrations/:id/resend-email', async (req, res) => {
     }
     if (registration.status === 'momo-paid' || registration.status === 'cash-paid') {
       emails.push(() => sendSlotConfirmation(registration, { force: true }));
+    }
+    if (registration.status === 'payment-not-confirmed') {
+      emails.push(() => sendPaymentNotConfirmed(registration, { force: true }));
     }
 
     const results = await Promise.allSettled(emails.map((send) => send()));
@@ -306,6 +311,43 @@ router.post('/registrations/:id/confirm-payment', async (req, res) => {
     }
     console.error(error);
     return res.status(500).json({ message: 'Unable to confirm payment.' });
+  }
+});
+
+router.post('/registrations/:id/review-payment', async (req, res) => {
+  if (!isValidId(req.params.id)) {
+    return res.status(400).json({ message: 'Invalid registration ID.' });
+  }
+
+  try {
+    const decision = req.body?.decision;
+    const registration = await registrationStore.reviewPayment(req.params.id, decision);
+    if (!registration) {
+      return res.status(404).json({ message: 'Registration not found.' });
+    }
+
+    let email = { sent: false };
+    try {
+      email = decision === 'confirmed'
+        ? await sendSlotConfirmation(registration)
+        : await sendPaymentNotConfirmed(registration);
+    } catch (error) {
+      console.error('Unable to send payment review email:', error.message);
+      email = { sent: false, reason: error.message };
+    }
+
+    const decisionMessage = decision === 'confirmed'
+      ? 'Payment confirmed and slot reserved.'
+      : 'Payment marked as not confirmed.';
+    return res.json({
+      message: email.sent
+        ? `${decisionMessage} The applicant was emailed.`
+        : `${decisionMessage} The applicant email could not be sent.`,
+      registration,
+      email,
+    });
+  } catch (error) {
+    return sendAdminError(res, error, 'Unable to review payment.');
   }
 });
 

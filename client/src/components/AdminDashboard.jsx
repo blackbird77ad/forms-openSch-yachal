@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const API_BASE = import.meta.env.PROD ? '' : import.meta.env.VITE_API_BASE || 'http://localhost:4001';
 const ADMIN_TOKEN_KEY = 'open-school-admin-token';
-const ADMIN_VIEW_KEY = 'open-school-admin-view';
+const ADMIN_VIEW_KEY = 'open-school-admin-view-v2';
 const RETRYABLE_STATUSES = new Set([502, 503, 504]);
 const PAGE_SIZE = 16;
 
@@ -58,6 +58,7 @@ function formatStatus(status) {
   if (status === 'momo-paid') return 'Momo paid';
   if (status === 'cash-pending') return 'Cash pending';
   if (status === 'cash-paid') return 'Cash paid';
+  if (status === 'payment-not-confirmed') return 'Payment not confirmed';
   return status;
 }
 
@@ -81,13 +82,13 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [storage, setStorage] = useState('');
   const [hasLoaded, setHasLoaded] = useState(false);
-  const [confirmingId, setConfirmingId] = useState('');
+  const [reviewingAction, setReviewingAction] = useState('');
   const [deletingId, setDeletingId] = useState('');
   const [editingId, setEditingId] = useState('');
   const [editForm, setEditForm] = useState(null);
   const [loadingStatus, setLoadingStatus] = useState('');
   const [capabilities, setCapabilities] = useState({});
-  const [viewType, setViewType] = useState(() => window.localStorage.getItem(ADMIN_VIEW_KEY) || 'grid');
+  const [viewType, setViewType] = useState(() => window.localStorage.getItem(ADMIN_VIEW_KEY) || 'list');
   const [searchTerm, setSearchTerm] = useState('');
   const [searchField, setSearchField] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -259,36 +260,51 @@ export default function AdminDashboard() {
     }
   };
 
-  const confirmPayment = async (registration) => {
-    setConfirmingId(registration._id);
+  const reviewPayment = async (registration, decision) => {
+    const isConfirmed = decision === 'confirmed';
+    const paymentProof = registration.paymentMethod === 'momo'
+      ? `Momo transaction ID ${registration.momoTransactionId || 'not provided'}`
+      : 'cash payment';
+    const shouldContinue = window.confirm(isConfirmed
+      ? `Confirm that ${paymentProof} was received and reserve a slot for ${registration.fullName}?`
+      : `Mark ${registration.fullName}'s ${paymentProof} as not received? Their slot will not be reserved.`);
+    if (!shouldContinue) return;
+
+    setReviewingAction(`${registration._id}-${decision}`);
     setError('');
     setMessage('');
 
     try {
-      const response = await requestApi(`/api/admin/registrations/${registration._id}/confirm-payment`, {
+      const response = await requestApi(`/api/admin/registrations/${registration._id}/review-payment`, {
         method: 'POST',
-        headers: { 'x-admin-token': token.trim() },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-token': token.trim(),
+        },
+        body: JSON.stringify({ decision }),
       });
       const data = await readJsonResponse(response);
 
       if (!response.ok) {
-        setError(data.message || 'Unable to confirm payment.');
+        setError(data.message || 'Unable to review payment.');
         return;
       }
 
       setRegistrations((current) => current.map((item) => (
         item._id === data.registration._id ? data.registration : item
       )));
-      if (data.email?.sent) {
-        setMessage(`${data.registration.fullName}'s payment is confirmed and their slot confirmation email was sent.`);
+      if (data.email?.sent && isConfirmed) {
+        setMessage(`${data.registration.fullName}'s payment is confirmed, their slot is reserved, and the email was sent.`);
+      } else if (data.email?.sent) {
+        setMessage(`${data.registration.fullName}'s payment was not confirmed and they were emailed with the Facilitator's contact number.`);
       } else {
-        setError(`${data.registration.fullName}'s payment is confirmed, but the email was not sent. Please contact them directly.`);
+        setError(`${data.message} Please contact ${data.registration.fullName} directly on ${data.registration.phone}.`);
       }
-    } catch (confirmError) {
+    } catch (reviewError) {
       setError('Unable to reach the server.');
-      console.error(confirmError);
+      console.error(reviewError);
     } finally {
-      setConfirmingId('');
+      setReviewingAction('');
     }
   };
 
@@ -452,55 +468,60 @@ export default function AdminDashboard() {
         <section className="admin-toolbar" aria-label="Registration search and display controls">
           <div className="admin-search-group">
             <label htmlFor="registrationSearch">Find a registration</label>
-            <div className="search-row">
-              <select value={searchField} onChange={(event) => setSearchField(event.target.value)} aria-label="Choose search field">
-                <option value="all">Name, email or church</option>
-                <option value="name">Name only</option>
-                <option value="email">Email only</option>
-                <option value="church">Church only</option>
-              </select>
-              <input
-                id="registrationSearch"
-                type="search"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Type a name, email or church"
-              />
-            </div>
+            <input
+              id="registrationSearch"
+              type="search"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Type a name, email or church"
+            />
           </div>
 
-          <div className="admin-filter-grid">
-            <div>
-              <label htmlFor="statusFilter">Payment status</label>
-              <select id="statusFilter" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-                <option value="all">All statuses</option>
-                <option value="awaiting-momo-payment">Awaiting Momo payment</option>
-                <option value="momo-review-pending">Momo awaiting review</option>
-                <option value="momo-paid">Momo paid</option>
-                <option value="cash-pending">Cash pending</option>
-                <option value="cash-paid">Cash paid</option>
-              </select>
+          <details className="admin-filter-panel">
+            <summary>Filters and sorting</summary>
+            <div className="admin-filter-grid">
+              <div>
+                <label htmlFor="searchField">Search in</label>
+                <select id="searchField" value={searchField} onChange={(event) => setSearchField(event.target.value)}>
+                  <option value="all">Name, email or church</option>
+                  <option value="name">Name only</option>
+                  <option value="email">Email only</option>
+                  <option value="church">Church only</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="statusFilter">Payment status</label>
+                <select id="statusFilter" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                  <option value="all">All statuses</option>
+                  <option value="awaiting-momo-payment">Awaiting Momo payment</option>
+                  <option value="momo-review-pending">Momo awaiting review</option>
+                  <option value="momo-paid">Momo paid</option>
+                  <option value="cash-pending">Cash pending</option>
+                  <option value="cash-paid">Cash paid</option>
+                  <option value="payment-not-confirmed">Payment not confirmed</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="paymentFilter">Payment method</label>
+                <select id="paymentFilter" value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value)}>
+                  <option value="all">All methods</option>
+                  <option value="momo">Momo</option>
+                  <option value="cash">Cash</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="sortRegistrations">Sort registrations</label>
+                <select id="sortRegistrations" value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="name">Name A-Z</option>
+                  <option value="email">Email A-Z</option>
+                  <option value="church">Church A-Z</option>
+                  <option value="status">Status A-Z</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <label htmlFor="paymentFilter">Payment method</label>
-              <select id="paymentFilter" value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value)}>
-                <option value="all">All methods</option>
-                <option value="momo">Momo</option>
-                <option value="cash">Cash</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="sortRegistrations">Sort registrations</label>
-              <select id="sortRegistrations" value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
-                <option value="newest">Newest first</option>
-                <option value="oldest">Oldest first</option>
-                <option value="name">Name A-Z</option>
-                <option value="email">Email A-Z</option>
-                <option value="church">Church A-Z</option>
-                <option value="status">Status A-Z</option>
-              </select>
-            </div>
-          </div>
+          </details>
 
           <div className="toolbar-footer">
             <div className="view-toggle" role="group" aria-label="Choose registration view">
@@ -554,18 +575,19 @@ export default function AdminDashboard() {
         {visibleRegistrations.map((item, index) => {
           const isEditing = editingId === item._id;
           const isPaid = item.status.includes('paid');
-          const canConfirm = capabilities.confirmPayment
-            && (item.status === 'momo-review-pending' || item.status === 'cash-pending');
+          const isRejected = item.status === 'payment-not-confirmed';
+          const canReview = capabilities.reviewPayment
+            && ['momo-review-pending', 'cash-pending', 'payment-not-confirmed'].includes(item.status);
 
           return (
-            <article className={`registration-card ${isPaid ? 'registration-card-paid' : 'registration-card-pending'} ${isEditing ? 'registration-card-editing' : ''}`} key={item._id}>
+            <article className={`registration-card ${isPaid ? 'registration-card-paid' : isRejected ? 'registration-card-rejected' : 'registration-card-pending'} ${canReview ? 'registration-card-reviewable' : ''} ${isEditing ? 'registration-card-editing' : ''}`} key={item._id}>
               <header className="registration-card-header">
                 <div>
                   <p className="registration-number">Registration {pageStart + index + 1}</p>
                   <h3>{item.fullName}</h3>
                   <p className="submitted-date">Submitted {formatSubmittedDate(item.createdAt)}</p>
                 </div>
-                <span className={`status-pill ${isPaid ? 'status-paid' : 'status-awaiting'}`}>
+                <span className={`status-pill ${isPaid ? 'status-paid' : isRejected ? 'status-rejected' : 'status-awaiting'}`}>
                   {formatStatus(item.status)}
                 </span>
               </header>
@@ -652,19 +674,40 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
+                  {canReview && (
+                    <section className="payment-review-box" aria-label={`Review ${item.fullName}'s payment`}>
+                      <div>
+                        <h4>Has this payment been received?</h4>
+                        <p>
+                          {item.paymentMethod === 'momo'
+                            ? `Check Momo transaction ID: ${item.momoTransactionId || 'Not submitted'}`
+                            : 'Confirm that the cash payment was received in person.'}
+                        </p>
+                      </div>
+                      <div className="payment-review-actions">
+                        <button
+                          className="action-button"
+                          type="button"
+                          onClick={() => reviewPayment(item, 'confirmed')}
+                          disabled={Boolean(reviewingAction)}
+                        >
+                          {reviewingAction === `${item._id}-confirmed` ? 'Saving Yes...' : 'Yes, payment received'}
+                        </button>
+                        <button
+                          className="danger-button"
+                          type="button"
+                          onClick={() => reviewPayment(item, 'not-confirmed')}
+                          disabled={Boolean(reviewingAction)}
+                        >
+                          {reviewingAction === `${item._id}-not-confirmed` ? 'Saving No...' : 'No, not received'}
+                        </button>
+                      </div>
+                    </section>
+                  )}
+
                   <div className="registration-card-actions">
-                    {canConfirm && (
-                      <button
-                        className="action-button confirm-payment-button"
-                        type="button"
-                        onClick={() => confirmPayment(item)}
-                        disabled={confirmingId === item._id}
-                      >
-                        {confirmingId === item._id ? 'Confirming payment...' : 'Confirm payment and give slot'}
-                      </button>
-                    )}
                     {capabilities.updateRegistration && (
-                      <button className="secondary-button" type="button" onClick={() => startEdit(item)}>Edit details</button>
+                      <button className="secondary-button" type="button" onClick={() => startEdit(item)}>Edit registration info</button>
                     )}
                     {capabilities.resendEmails && (
                       <button

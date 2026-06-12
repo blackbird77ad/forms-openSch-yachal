@@ -25,8 +25,10 @@ const RegistrationSchema = new mongoose.Schema(
         'momo-paid',
         'cash-pending',
         'cash-paid',
+        'payment-not-confirmed',
       ],
     },
+    paymentReviewedAt: { type: Date },
   },
   { timestamps: true }
 );

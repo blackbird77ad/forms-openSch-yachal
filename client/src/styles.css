@@ -576,8 +576,30 @@ table td {
 
 .admin-filter-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
   gap: 10px;
+}
+
+.admin-filter-panel {
+  border: 1px solid #dbe3ef;
+  border-radius: 10px;
+  background: white;
+}
+
+.admin-filter-panel summary {
+  padding: 9px 12px;
+  color: #1e3a8a;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.admin-filter-panel[open] summary {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.admin-filter-panel .admin-filter-grid {
+  padding: 12px;
 }
 
 .admin-toolbar input,
@@ -711,6 +733,10 @@ table td {
   border-top: 5px solid #d97706;
 }
 
+.registration-card-rejected {
+  border-top: 5px solid #dc2626;
+}
+
 .registration-card-header {
   display: flex;
   align-items: flex-start;
@@ -789,10 +815,42 @@ table td {
   font-size: 0.75rem;
 }
 
-.confirm-payment-button {
-  flex-basis: 100% !important;
-  padding: 10px 12px;
-  font-size: 0.8rem;
+.payment-review-box {
+  margin: 8px 12px 0;
+  padding: 10px;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  background: #eff6ff;
+}
+
+.payment-review-box h4,
+.payment-review-box p {
+  margin: 0;
+}
+
+.payment-review-box h4 {
+  color: #0f172a;
+  font-size: 0.82rem;
+}
+
+.payment-review-box p {
+  margin-top: 3px;
+  color: #475569;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.payment-review-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.payment-review-actions button {
+  padding: 8px;
+  font-size: 0.7rem;
 }
 
 .danger-button {
@@ -839,6 +897,10 @@ table td {
   align-items: stretch;
 }
 
+.registration-list .registration-card-reviewable:not(.registration-card-editing) {
+  grid-template-columns: minmax(190px, 0.7fr) minmax(0, 1.65fr) minmax(210px, 0.75fr) minmax(150px, 0.5fr);
+}
+
 .registration-list .registration-card-header {
   border-right: 1px solid #e2e8f0;
   border-bottom: 0;
@@ -847,6 +909,11 @@ table td {
 .registration-list .registration-details {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   align-content: center;
+}
+
+.registration-list .payment-review-box {
+  align-self: center;
+  margin: 10px;
 }
 
 .registration-list .registration-card-actions {
@@ -935,6 +1002,11 @@ table td select {
   color: #15803d;
 }
 
+.status-rejected {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
 .full-width {
   grid-column: 1 / -1;
 }
@@ -992,6 +1064,18 @@ table td select {
 
   .search-row,
   .admin-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-toolbar {
+    padding: 12px;
+  }
+
+  .admin-filter-panel .admin-filter-grid {
+    padding: 10px;
+  }
+
+  .payment-review-actions {
     grid-template-columns: 1fr;
   }
 
