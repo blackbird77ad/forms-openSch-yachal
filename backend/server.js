@@ -60,6 +60,33 @@ app.get('/', (req, res) => {
   });
 });
 
+app.get('/api/health', async (req, res) => {
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      status: 'unavailable',
+      storage: getStoreMode(),
+      database: null,
+    });
+  }
+
+  try {
+    await mongoose.connection.db.admin().ping();
+    return res.json({
+      status: 'ok',
+      storage: 'mongo',
+      database: mongoose.connection.name,
+      collection: 'registrations',
+    });
+  } catch (error) {
+    console.error('MongoDB health check failed:', error.message);
+    return res.status(503).json({
+      status: 'unavailable',
+      storage: getStoreMode(),
+      database: mongoose.connection.name || null,
+    });
+  }
+});
+
 const PORT = process.env.PORT || 4001;
 
 const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/open-school-yachal';

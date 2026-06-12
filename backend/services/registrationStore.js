@@ -81,6 +81,20 @@ async function mirrorRegistrationLocally(registration) {
   }
 }
 
+async function removeRegistrationLocally(id) {
+  if (!fileFallbackEnabled) return;
+
+  try {
+    const registrations = await readLocalRegistrations();
+    const remaining = registrations.filter((item) => String(item._id) !== String(id));
+    if (remaining.length !== registrations.length) {
+      await writeLocalRegistrations(remaining);
+    }
+  } catch (error) {
+    console.error(`Unable to remove local registration mirror ${id}:`, error.message);
+  }
+}
+
 function toLocalRegistration(data) {
   const now = new Date().toISOString();
 
@@ -189,6 +203,80 @@ async function findAllNewestFirst() {
 
   const registrations = await readLocalRegistrations();
   return sortNewestFirst(registrations);
+}
+
+async function findById(id) {
+  const mode = getStoreMode();
+  if (mode === 'mongo') {
+    return Registration.findById(id);
+  }
+  if (mode === 'unavailable') {
+    throw createUnavailableError();
+  }
+
+  const registrations = await readLocalRegistrations();
+  return registrations.find((item) => String(item._id) === String(id)) || null;
+}
+
+async function updateById(id, updates) {
+  const mode = getStoreMode();
+  if (mode === 'mongo') {
+    const registration = await Registration.findById(id);
+    if (!registration) return null;
+
+    Object.assign(registration, updates);
+    await registration.save();
+    await mirrorRegistrationLocally(registration);
+    return registration;
+  }
+  if (mode === 'unavailable') {
+    throw createUnavailableError();
+  }
+
+  const registrations = await readLocalRegistrations();
+  const index = registrations.findIndex((item) => String(item._id) === String(id));
+  if (index === -1) return null;
+
+  if (updates.email) {
+    const duplicate = registrations.some(
+      (item, itemIndex) => itemIndex !== index && item.email === updates.email
+    );
+    if (duplicate) {
+      const error = new Error('Duplicate registration.');
+      error.code = 11000;
+      throw error;
+    }
+  }
+
+  registrations[index] = {
+    ...registrations[index],
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  };
+  await writeLocalRegistrations(registrations);
+  return registrations[index];
+}
+
+async function deleteById(id) {
+  const mode = getStoreMode();
+  if (mode === 'mongo') {
+    const registration = await Registration.findByIdAndDelete(id);
+    if (registration) {
+      await removeRegistrationLocally(id);
+    }
+    return registration;
+  }
+  if (mode === 'unavailable') {
+    throw createUnavailableError();
+  }
+
+  const registrations = await readLocalRegistrations();
+  const index = registrations.findIndex((item) => String(item._id) === String(id));
+  if (index === -1) return null;
+
+  const [registration] = registrations.splice(index, 1);
+  await writeLocalRegistrations(registrations);
+  return registration;
 }
 
 async function submitMomoPayment({ email, momoReference, momoTransactionId }) {
@@ -342,12 +430,15 @@ async function syncLocalRegistrationsToMongo() {
 
 module.exports = {
   create,
+  deleteById,
   enableFileFallback,
   exists,
   findAllNewestFirst,
+  findById,
   findOne,
   getStoreMode,
   confirmPayment,
   submitMomoPayment,
   syncLocalRegistrationsToMongo,
+  updateById,
 };

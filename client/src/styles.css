@@ -535,6 +535,26 @@ table td {
   word-break: break-word;
 }
 
+table td input,
+table td select {
+  min-width: 150px;
+  padding: 8px;
+}
+
+.table-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 190px;
+}
+
+.table-actions .action-button,
+.table-actions .secondary-button {
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
 .status-pill {
   display: inline-block;
   padding: clamp(4px, 1vw, 6px) clamp(8px, 1.5vw, 10px);

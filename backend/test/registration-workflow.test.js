@@ -4,6 +4,7 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const express = require('express');
+const mongoose = require('mongoose');
 
 const localStore = path.join(os.tmpdir(), `open-sch-yachal-${process.pid}.json`);
 process.env.LOCAL_REGISTRATION_STORE = localStore;
@@ -52,11 +53,51 @@ test('Momo registration waits for admin review before becoming paid', async (t) 
   const created = await createdResponse.json();
   assert.equal(created.registration.status, 'awaiting-momo-payment');
 
+  const adminHeaders = { 'x-admin-token': process.env.ADMIN_TOKEN };
+  const readResponse = await fetch(
+    `${baseUrl}/api/admin/registrations/${created.registration._id}`,
+    { headers: adminHeaders }
+  );
+  assert.equal(readResponse.status, 200);
+  const read = await readResponse.json();
+  assert.equal(read.registration.email, 'workflow@example.com');
+
+  const updateResponse = await fetch(
+    `${baseUrl}/api/admin/registrations/${created.registration._id}`,
+    {
+      method: 'PATCH',
+      headers: { ...adminHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fullName: 'Workflow Test Updated',
+        email: 'WORKFLOW.UPDATED@example.com',
+        phone: '0211111111',
+        country: 'Ghana',
+        church: 'Yachal House',
+        churchRole: 'Leader',
+      }),
+    }
+  );
+  assert.equal(updateResponse.status, 200);
+  const updated = await updateResponse.json();
+  assert.equal(updated.registration.fullName, 'Workflow Test Updated');
+  assert.equal(updated.registration.email, 'workflow.updated@example.com');
+  assert.equal(updated.registration.churchRole, 'Leader');
+
+  const protectedFieldResponse = await fetch(
+    `${baseUrl}/api/admin/registrations/${created.registration._id}`,
+    {
+      method: 'PATCH',
+      headers: { ...adminHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'momo-paid' }),
+    }
+  );
+  assert.equal(protectedFieldResponse.status, 400);
+
   const submittedResponse = await fetch(`${baseUrl}/api/registrations/confirm`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      email: created.registration.email,
+      email: updated.registration.email,
       momoReference: created.registration.momoReference,
       momoTransactionId: 'TEST-TXN-123',
     }),
@@ -65,7 +106,6 @@ test('Momo registration waits for admin review before becoming paid', async (t) 
   const submitted = await submittedResponse.json();
   assert.equal(submitted.registration.status, 'momo-review-pending');
 
-  const adminHeaders = { 'x-admin-token': process.env.ADMIN_TOKEN };
   const listResponse = await fetch(`${baseUrl}/api/admin/registrations`, { headers: adminHeaders });
   assert.equal(listResponse.status, 200);
   const list = await listResponse.json();
@@ -85,6 +125,28 @@ test('Momo registration waits for admin review before becoming paid', async (t) 
     { method: 'POST', headers: adminHeaders }
   );
   assert.equal(duplicateConfirmResponse.status, 409);
+
+  const unauthorizedDeleteResponse = await fetch(
+    `${baseUrl}/api/admin/registrations/${created.registration._id}`,
+    { method: 'DELETE' }
+  );
+  assert.equal(unauthorizedDeleteResponse.status, 401);
+
+  const deleteResponse = await fetch(
+    `${baseUrl}/api/admin/registrations/${created.registration._id}`,
+    { method: 'DELETE', headers: adminHeaders }
+  );
+  assert.equal(deleteResponse.status, 200);
+
+  const missingResponse = await fetch(
+    `${baseUrl}/api/admin/registrations/${created.registration._id}`,
+    { headers: adminHeaders }
+  );
+  assert.equal(missingResponse.status, 404);
+
+  const finalListResponse = await fetch(`${baseUrl}/api/admin/registrations`, { headers: adminHeaders });
+  const finalList = await finalListResponse.json();
+  assert.equal(finalList.registrations.length, 0);
 });
 
 test('emails target both admins and the applicant at each stage', async (t) => {
@@ -131,4 +193,62 @@ test('emails target both admins and the applicant at each stage', async (t) => {
   assert.deepEqual(calls[3].body.to, ['applicant@example.com']);
   assert.deepEqual(calls[4].body.to, ['applicant@example.com']);
   assert.ok(calls.every((call) => call.url === 'https://api.resend.com/emails'));
+});
+
+test('admin database check exercises create, read, update, and delete', async (t) => {
+  const originalReadyState = mongoose.connection.readyState;
+  const originalDb = mongoose.connection.db;
+  let document = null;
+
+  mongoose.connection.readyState = 1;
+  mongoose.connection.db = {
+    collection() {
+      return {
+        async insertOne(value) {
+          document = { ...value };
+          return { acknowledged: true };
+        },
+        async findOne(query) {
+          return document && String(document._id) === String(query._id) ? { ...document } : null;
+        },
+        async updateOne(query, update) {
+          if (!document || String(document._id) !== String(query._id)) return { modifiedCount: 0 };
+          document = { ...document, ...update.$set };
+          return { modifiedCount: 1 };
+        },
+        async deleteOne(query) {
+          if (!document || String(document._id) !== String(query._id)) return { deletedCount: 0 };
+          document = null;
+          return { deletedCount: 1 };
+        },
+      };
+    },
+  };
+
+  t.after(() => {
+    mongoose.connection.readyState = originalReadyState;
+    mongoose.connection.db = originalDb;
+  });
+
+  const app = express();
+  app.use(express.json());
+  app.use('/api/admin', adminRoutes);
+  const server = await new Promise((resolve) => {
+    const instance = app.listen(0, '127.0.0.1', () => resolve(instance));
+  });
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`http://127.0.0.1:${server.address().port}/api/admin/database-check`, {
+    method: 'POST',
+    headers: { 'x-admin-token': process.env.ADMIN_TOKEN },
+  });
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.deepEqual(data.operations, {
+    create: true,
+    read: true,
+    update: true,
+    delete: true,
+  });
+  assert.equal(document, null);
 });

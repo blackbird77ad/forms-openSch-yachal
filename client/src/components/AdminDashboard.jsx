@@ -20,6 +20,9 @@ export default function AdminDashboard() {
   const [storage, setStorage] = useState('');
   const [hasLoaded, setHasLoaded] = useState(false);
   const [confirmingId, setConfirmingId] = useState('');
+  const [deletingId, setDeletingId] = useState('');
+  const [editingId, setEditingId] = useState('');
+  const [editForm, setEditForm] = useState(null);
 
   const loadRegistrations = async () => {
     setLoading(true);
@@ -82,6 +85,94 @@ export default function AdminDashboard() {
       console.error(confirmError);
     } finally {
       setConfirmingId('');
+    }
+  };
+
+  const startEdit = (registration) => {
+    setEditingId(registration._id);
+    setEditForm({
+      fullName: registration.fullName,
+      email: registration.email,
+      phone: registration.phone,
+      country: registration.country || 'Ghana',
+      church: registration.church || '',
+      churchRole: registration.churchRole || 'Member',
+    });
+    setError('');
+    setMessage('');
+  };
+
+  const cancelEdit = () => {
+    setEditingId('');
+    setEditForm(null);
+  };
+
+  const updateEditField = (field, value) => {
+    setEditForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const saveEdit = async () => {
+    if (!editingId || !editForm) return;
+
+    setLoading(true);
+    setError('');
+    setMessage('');
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/registrations/${editingId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-token': token,
+        },
+        body: JSON.stringify(editForm),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.message || 'Unable to update registration.');
+        return;
+      }
+
+      setRegistrations((current) => current.map((item) => (
+        item._id === data.registration._id ? data.registration : item
+      )));
+      setMessage(`${data.registration.fullName}'s registration was updated.`);
+      cancelEdit();
+    } catch (updateError) {
+      setError('Unable to reach the server.');
+      console.error(updateError);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteRegistration = async (registration) => {
+    const shouldDelete = window.confirm(
+      `Delete ${registration.fullName}'s registration? This cannot be undone.`
+    );
+    if (!shouldDelete) return;
+
+    setDeletingId(registration._id);
+    setError('');
+    setMessage('');
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/registrations/${registration._id}`, {
+        method: 'DELETE',
+        headers: { 'x-admin-token': token },
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.message || 'Unable to delete registration.');
+        return;
+      }
+
+      setRegistrations((current) => current.filter((item) => item._id !== registration._id));
+      if (editingId === registration._id) cancelEdit();
+      setMessage(`${registration.fullName}'s registration was deleted.`);
+    } catch (deleteError) {
+      setError('Unable to reach the server.');
+      console.error(deleteError);
+    } finally {
+      setDeletingId('');
     }
   };
 
@@ -170,11 +261,37 @@ export default function AdminDashboard() {
             )}
             {registrations.map((item) => (
               <tr key={item._id}>
-                <td>{item.fullName}</td>
-                <td>{item.email}</td>
-                <td>{item.phone}</td>
-                <td>{item.church || '-'}</td>
-                <td>{item.churchRole || '-'}</td>
+                <td>
+                  {editingId === item._id ? (
+                    <input value={editForm.fullName} onChange={(event) => updateEditField('fullName', event.target.value)} />
+                  ) : item.fullName}
+                </td>
+                <td>
+                  {editingId === item._id ? (
+                    <input type="email" value={editForm.email} onChange={(event) => updateEditField('email', event.target.value)} />
+                  ) : item.email}
+                </td>
+                <td>
+                  {editingId === item._id ? (
+                    <input value={editForm.phone} onChange={(event) => updateEditField('phone', event.target.value)} />
+                  ) : item.phone}
+                </td>
+                <td>
+                  {editingId === item._id ? (
+                    <input value={editForm.church} onChange={(event) => updateEditField('church', event.target.value)} />
+                  ) : (item.church || '-')}
+                </td>
+                <td>
+                  {editingId === item._id ? (
+                    <select value={editForm.churchRole} onChange={(event) => updateEditField('churchRole', event.target.value)}>
+                      <option value="Pastor">Pastor</option>
+                      <option value="Church worker">Church worker</option>
+                      <option value="Leader">Leader</option>
+                      <option value="Member">Member</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  ) : (item.churchRole || '-')}
+                </td>
                 <td>{item.paymentMethod}</td>
                 <td>
                   <span className={`status-pill ${item.status.includes('paid') ? 'status-paid' : 'status-awaiting'}`}>
@@ -184,16 +301,36 @@ export default function AdminDashboard() {
                 <td>{item.momoReference || '-'}</td>
                 <td>{item.momoTransactionId || '-'}</td>
                 <td>
-                  {(item.status === 'momo-review-pending' || item.status === 'cash-pending') ? (
-                    <button
-                      className="action-button"
-                      type="button"
-                      onClick={() => confirmPayment(item)}
-                      disabled={confirmingId === item._id}
-                    >
-                      {confirmingId === item._id ? 'Confirming...' : 'Confirm payment'}
-                    </button>
-                  ) : '-'}
+                  <div className="table-actions">
+                    {editingId === item._id ? (
+                      <>
+                        <button className="action-button" type="button" onClick={saveEdit} disabled={loading}>Save</button>
+                        <button className="secondary-button" type="button" onClick={cancelEdit} disabled={loading}>Cancel</button>
+                      </>
+                    ) : (
+                      <button className="secondary-button" type="button" onClick={() => startEdit(item)}>Edit</button>
+                    )}
+                    {(item.status === 'momo-review-pending' || item.status === 'cash-pending') && editingId !== item._id && (
+                      <button
+                        className="action-button"
+                        type="button"
+                        onClick={() => confirmPayment(item)}
+                        disabled={confirmingId === item._id}
+                      >
+                        {confirmingId === item._id ? 'Confirming...' : 'Confirm payment'}
+                      </button>
+                    )}
+                    {editingId !== item._id && (
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        onClick={() => deleteRegistration(item)}
+                        disabled={deletingId === item._id}
+                      >
+                        {deletingId === item._id ? 'Deleting...' : 'Delete'}
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
