@@ -168,7 +168,6 @@ router.get('/registrations', async (req, res) => {
         readRegistration: true,
         resendEmails: true,
         reviewPayment: true,
-        updateRegistration: true,
       },
     });
   } catch (error) {

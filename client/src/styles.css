@@ -841,6 +841,11 @@ table td {
   overflow-wrap: anywhere;
 }
 
+.payment-review-waiting {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
 .payment-review-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -864,40 +869,27 @@ table td {
   background: #fee2e2;
 }
 
-.registration-edit-form {
-  padding: 14px;
-}
-
-.edit-heading {
-  margin-bottom: 12px;
-}
-
-.edit-heading h4,
-.edit-heading p {
-  margin: 0;
-}
-
-.edit-heading h4 {
-  color: #0f172a;
-  font-size: 0.95rem;
-}
-
-.edit-heading p {
-  margin-top: 4px;
-  font-size: 0.78rem;
+.delete-icon-button {
+  display: inline-grid;
+  flex: 0 0 38px !important;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  padding: 0 !important;
+  place-items: center;
 }
 
 .registration-list {
   grid-template-columns: 1fr;
 }
 
-.registration-list .registration-card:not(.registration-card-editing) {
+.registration-list .registration-card {
   display: grid;
   grid-template-columns: minmax(210px, 0.75fr) minmax(0, 2fr) minmax(180px, 0.65fr);
   align-items: stretch;
 }
 
-.registration-list .registration-card-reviewable:not(.registration-card-editing) {
+.registration-list .registration-card-reviewable {
   grid-template-columns: minmax(190px, 0.7fr) minmax(0, 1.65fr) minmax(210px, 0.75fr) minmax(150px, 0.5fr);
 }
 
@@ -921,8 +913,12 @@ table td {
   border-left: 1px solid #e2e8f0;
 }
 
-.registration-list .registration-card-actions button {
+.registration-list .registration-card-actions button:not(.delete-icon-button) {
   flex-basis: 100%;
+}
+
+.registration-list .registration-card-actions .delete-icon-button {
+  margin-left: auto;
 }
 
 .pagination {
@@ -951,9 +947,6 @@ table td {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .registration-card-editing {
-    grid-column: span 2;
-  }
 }
 
 @media (min-width: 1200px) {
@@ -1107,7 +1100,7 @@ table td select {
 }
 
 @media (max-width: 899px) {
-  .registration-list .registration-card:not(.registration-card-editing) {
+  .registration-list .registration-card {
     display: block;
   }
 

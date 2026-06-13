@@ -118,7 +118,6 @@ test('Momo registration waits for admin review before becoming paid', async (t) 
     readRegistration: true,
     resendEmails: true,
     reviewPayment: true,
-    updateRegistration: true,
   });
 
   const rejectResponse = await fetch(

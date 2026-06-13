@@ -52,14 +52,17 @@ async function readJsonResponse(response) {
   }
 }
 
+function getPaymentState(status) {
+  if (status === 'momo-paid' || status === 'cash-paid') return 'paid';
+  if (status === 'payment-not-confirmed') return 'not-received';
+  return 'yet-to-confirm';
+}
+
 function formatStatus(status) {
-  if (status === 'awaiting-momo-payment') return 'Awaiting momo payment';
-  if (status === 'momo-review-pending') return 'Momo awaiting admin review';
-  if (status === 'momo-paid') return 'Momo paid';
-  if (status === 'cash-pending') return 'Cash pending';
-  if (status === 'cash-paid') return 'Cash paid';
-  if (status === 'payment-not-confirmed') return 'Payment not confirmed';
-  return status;
+  const paymentState = getPaymentState(status);
+  if (paymentState === 'paid') return 'Paid';
+  if (paymentState === 'not-received') return 'Payment not received';
+  return 'Yet to confirm';
 }
 
 function formatPaymentMethod(paymentMethod) {
@@ -84,8 +87,6 @@ export default function AdminDashboard() {
   const [hasLoaded, setHasLoaded] = useState(false);
   const [reviewingAction, setReviewingAction] = useState('');
   const [deletingId, setDeletingId] = useState('');
-  const [editingId, setEditingId] = useState('');
-  const [editForm, setEditForm] = useState(null);
   const [loadingStatus, setLoadingStatus] = useState('');
   const [capabilities, setCapabilities] = useState({});
   const [viewType, setViewType] = useState(() => window.localStorage.getItem(ADMIN_VIEW_KEY) || 'list');
@@ -111,7 +112,7 @@ export default function AdminDashboard() {
       const matchesSearch = !query || (searchField === 'all'
         ? [item.fullName, item.email, item.church].some((value) => String(value || '').toLowerCase().includes(query))
         : String(searchableFields[searchField]?.(item) || '').toLowerCase().includes(query));
-      const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
+      const matchesStatus = statusFilter === 'all' || getPaymentState(item.status) === statusFilter;
       const matchesPayment = paymentFilter === 'all' || item.paymentMethod === paymentFilter;
       return matchesSearch && matchesStatus && matchesPayment;
     });
@@ -121,7 +122,7 @@ export default function AdminDashboard() {
       if (sortBy === 'name') return String(a.fullName).localeCompare(String(b.fullName));
       if (sortBy === 'email') return String(a.email).localeCompare(String(b.email));
       if (sortBy === 'church') return String(a.church || '').localeCompare(String(b.church || ''));
-      if (sortBy === 'status') return String(a.status).localeCompare(String(b.status));
+      if (sortBy === 'status') return formatStatus(a.status).localeCompare(formatStatus(b.status));
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
   }, [registrations, searchTerm, searchField, statusFilter, paymentFilter, sortBy]);
@@ -308,63 +309,6 @@ export default function AdminDashboard() {
     }
   };
 
-  const startEdit = (registration) => {
-    setEditingId(registration._id);
-    setEditForm({
-      fullName: registration.fullName,
-      email: registration.email,
-      phone: registration.phone,
-      country: registration.country || 'Ghana',
-      church: registration.church || '',
-      churchRole: registration.churchRole || 'Member',
-    });
-    setError('');
-    setMessage('');
-  };
-
-  const cancelEdit = () => {
-    setEditingId('');
-    setEditForm(null);
-  };
-
-  const updateEditField = (field, value) => {
-    setEditForm((current) => ({ ...current, [field]: value }));
-  };
-
-  const saveEdit = async () => {
-    if (!editingId || !editForm) return;
-
-    setLoading(true);
-    setError('');
-    setMessage('');
-    try {
-      const response = await requestApi(`/api/admin/registrations/${editingId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-token': token.trim(),
-        },
-        body: JSON.stringify(editForm),
-      });
-      const data = await readJsonResponse(response);
-      if (!response.ok) {
-        setError(data.message || 'Unable to update registration.');
-        return;
-      }
-
-      setRegistrations((current) => current.map((item) => (
-        item._id === data.registration._id ? data.registration : item
-      )));
-      setMessage(`${data.registration.fullName}'s registration was updated.`);
-      cancelEdit();
-    } catch (updateError) {
-      setError('Unable to reach the server.');
-      console.error(updateError);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const deleteRegistration = async (registration) => {
     const shouldDelete = window.confirm(
       `Delete ${registration.fullName}'s registration? This cannot be undone.`
@@ -386,7 +330,6 @@ export default function AdminDashboard() {
       }
 
       setRegistrations((current) => current.filter((item) => item._id !== registration._id));
-      if (editingId === registration._id) cancelEdit();
       setMessage(`${registration.fullName}'s registration was deleted.`);
     } catch (deleteError) {
       setError('Unable to reach the server.');
@@ -493,12 +436,9 @@ export default function AdminDashboard() {
                 <label htmlFor="statusFilter">Payment status</label>
                 <select id="statusFilter" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
                   <option value="all">All statuses</option>
-                  <option value="awaiting-momo-payment">Awaiting Momo payment</option>
-                  <option value="momo-review-pending">Momo awaiting review</option>
-                  <option value="momo-paid">Momo paid</option>
-                  <option value="cash-pending">Cash pending</option>
-                  <option value="cash-paid">Cash paid</option>
-                  <option value="payment-not-confirmed">Payment not confirmed</option>
+                  <option value="yet-to-confirm">Yet to confirm</option>
+                  <option value="paid">Paid</option>
+                  <option value="not-received">Payment not received</option>
                 </select>
               </div>
               <div>
@@ -573,14 +513,17 @@ export default function AdminDashboard() {
 
       <div className={`registration-results registration-${viewType}`}>
         {visibleRegistrations.map((item, index) => {
-          const isEditing = editingId === item._id;
-          const isPaid = item.status.includes('paid');
-          const isRejected = item.status === 'payment-not-confirmed';
+          const paymentState = getPaymentState(item.status);
+          const isPaid = paymentState === 'paid';
+          const isRejected = paymentState === 'not-received';
+          const needsTransactionId = item.paymentMethod === 'momo' && !item.momoTransactionId;
           const canReview = capabilities.reviewPayment
-            && ['momo-review-pending', 'cash-pending', 'payment-not-confirmed'].includes(item.status);
+            && !isPaid
+            && !needsTransactionId;
+          const showPaymentReview = !isPaid;
 
           return (
-            <article className={`registration-card ${isPaid ? 'registration-card-paid' : isRejected ? 'registration-card-rejected' : 'registration-card-pending'} ${canReview ? 'registration-card-reviewable' : ''} ${isEditing ? 'registration-card-editing' : ''}`} key={item._id}>
+            <article className={`registration-card ${isPaid ? 'registration-card-paid' : isRejected ? 'registration-card-rejected' : 'registration-card-pending'} ${showPaymentReview ? 'registration-card-reviewable' : ''}`} key={item._id}>
               <header className="registration-card-header">
                 <div>
                   <p className="registration-number">Registration {pageStart + index + 1}</p>
@@ -592,54 +535,7 @@ export default function AdminDashboard() {
                 </span>
               </header>
 
-              {isEditing ? (
-                <div className="registration-edit-form">
-                  <div className="edit-heading">
-                    <h4>Edit registration details</h4>
-                    <p>Change the information below, then press Save changes.</p>
-                  </div>
-                  <div className="form-grid two-col">
-                    <div>
-                      <label htmlFor={`fullName-${item._id}`}>Full name</label>
-                      <input id={`fullName-${item._id}`} value={editForm.fullName} onChange={(event) => updateEditField('fullName', event.target.value)} />
-                    </div>
-                    <div>
-                      <label htmlFor={`email-${item._id}`}>Email address</label>
-                      <input id={`email-${item._id}`} type="email" value={editForm.email} onChange={(event) => updateEditField('email', event.target.value)} />
-                    </div>
-                    <div>
-                      <label htmlFor={`phone-${item._id}`}>Phone number</label>
-                      <input id={`phone-${item._id}`} value={editForm.phone} onChange={(event) => updateEditField('phone', event.target.value)} />
-                    </div>
-                    <div>
-                      <label htmlFor={`country-${item._id}`}>Country</label>
-                      <input id={`country-${item._id}`} value={editForm.country} onChange={(event) => updateEditField('country', event.target.value)} />
-                    </div>
-                    <div>
-                      <label htmlFor={`church-${item._id}`}>Church</label>
-                      <input id={`church-${item._id}`} value={editForm.church} onChange={(event) => updateEditField('church', event.target.value)} />
-                    </div>
-                    <div>
-                      <label htmlFor={`churchRole-${item._id}`}>Church role</label>
-                      <select id={`churchRole-${item._id}`} value={editForm.churchRole} onChange={(event) => updateEditField('churchRole', event.target.value)}>
-                        <option value="Pastor">Pastor</option>
-                        <option value="Church worker">Church worker</option>
-                        <option value="Leader">Leader</option>
-                        <option value="Member">Member</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="registration-card-actions">
-                    <button className="action-button" type="button" onClick={saveEdit} disabled={loading}>
-                      {loading ? 'Saving changes...' : 'Save changes'}
-                    </button>
-                    <button className="secondary-button" type="button" onClick={cancelEdit} disabled={loading}>Cancel editing</button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="registration-details" aria-label={`${item.fullName}'s registration details`}>
+              <div className="registration-details" aria-label={`${item.fullName}'s registration details`}>
                     <div className="registration-detail">
                       <span>Email address</span>
                       <strong>{item.email}</strong>
@@ -672,19 +568,21 @@ export default function AdminDashboard() {
                       <span>Transaction ID</span>
                       <strong>{item.momoTransactionId || 'Not submitted yet'}</strong>
                     </div>
-                  </div>
+              </div>
 
-                  {canReview && (
-                    <section className="payment-review-box" aria-label={`Review ${item.fullName}'s payment`}>
+              {showPaymentReview && (
+                <section className={`payment-review-box ${needsTransactionId ? 'payment-review-waiting' : ''}`} aria-label={`Review ${item.fullName}'s payment`}>
                       <div>
-                        <h4>Has this payment been received?</h4>
+                        <h4>{needsTransactionId ? 'Waiting for transaction ID' : 'Confirm payment after checking the proof'}</h4>
                         <p>
                           {item.paymentMethod === 'momo'
-                            ? `Check Momo transaction ID: ${item.momoTransactionId || 'Not submitted'}`
+                            ? needsTransactionId
+                              ? 'The applicant must submit a Momo transaction ID before payment can be confirmed.'
+                              : `Compare this Momo transaction ID manually: ${item.momoTransactionId}`
                             : 'Confirm that the cash payment was received in person.'}
                         </p>
                       </div>
-                      <div className="payment-review-actions">
+                      {canReview && <div className="payment-review-actions">
                         <button
                           className="action-button"
                           type="button"
@@ -701,14 +599,11 @@ export default function AdminDashboard() {
                         >
                           {reviewingAction === `${item._id}-not-confirmed` ? 'Saving No...' : 'No, not received'}
                         </button>
-                      </div>
-                    </section>
-                  )}
+                      </div>}
+                </section>
+              )}
 
-                  <div className="registration-card-actions">
-                    {capabilities.updateRegistration && (
-                      <button className="secondary-button" type="button" onClick={() => startEdit(item)}>Edit registration info</button>
-                    )}
+              <div className="registration-card-actions">
                     {capabilities.resendEmails && (
                       <button
                         className="secondary-button"
@@ -721,17 +616,19 @@ export default function AdminDashboard() {
                     )}
                     {capabilities.deleteRegistration && (
                       <button
-                        className="danger-button"
+                        className="danger-button delete-icon-button"
                         type="button"
                         onClick={() => deleteRegistration(item)}
                         disabled={deletingId === item._id}
+                        aria-label={deletingId === item._id ? `Deleting ${item.fullName}` : `Delete ${item.fullName}'s registration`}
+                        title="Delete registration"
                       >
-                        {deletingId === item._id ? 'Deleting registration...' : 'Delete registration'}
+                        <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18">
+                          <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-2 6h10l-1 11H8L7 9Zm3 2v7h2v-7h-2Zm4 0v7h2v-7h-2Z" fill="currentColor" />
+                        </svg>
                       </button>
                     )}
-                  </div>
-                </>
-              )}
+              </div>
             </article>
           );
         })}
