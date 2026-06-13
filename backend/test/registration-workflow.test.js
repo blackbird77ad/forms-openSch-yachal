@@ -265,6 +265,8 @@ test('emails target both admins and the applicant at each stage', async (t) => {
   assert.deepEqual(calls[3].body.to, ['applicant@example.com']);
   assert.deepEqual(calls[4].body.to, ['applicant@example.com']);
   assert.deepEqual(calls[5].body.to, ['applicant@example.com']);
+  assert.match(calls[5].body.subject, /not paid/i);
+  assert.match(calls[5].body.text, /transaction ID/i);
   assert.match(calls[5].body.text, /0544600600/);
   assert.ok(calls.every((call) => call.url === 'https://api.resend.com/emails'));
 });

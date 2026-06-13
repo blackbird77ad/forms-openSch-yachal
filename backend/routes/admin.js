@@ -337,7 +337,7 @@ router.post('/registrations/:id/review-payment', async (req, res) => {
 
     const decisionMessage = decision === 'confirmed'
       ? 'Payment confirmed and slot reserved.'
-      : 'Payment marked as not confirmed.';
+      : 'Payment marked as not paid.';
     return res.json({
       message: email.sent
         ? `${decisionMessage} The applicant was emailed.`

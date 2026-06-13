@@ -212,18 +212,18 @@ function sendSlotConfirmation(registration, options) {
 
 function sendPaymentNotConfirmed(registration, options) {
   const paymentDescription = registration.paymentMethod === 'momo'
-    ? `Momo payment with transaction ID ${registration.momoTransactionId || 'not provided'}`
+    ? `Momo transaction ID ${registration.momoTransactionId || 'not provided'}`
     : 'cash payment';
 
   return sendEmail({
     to: registration.email,
-    subject: 'Payment not confirmed - action required',
+    subject: 'Payment marked as not paid - action required',
     idempotencyKey: createIdempotencyKey(`payment-not-confirmed-${registration._id}`, options),
     text: [
       `Hello ${registration.fullName},`,
       '',
-      `We could not confirm your ${paymentDescription}. Your slot has not been reserved yet.`,
-      'Please send your payment proof or Momo transaction ID and contact the Facilitator on 0544600600.',
+      `We could not verify your ${paymentDescription}, so your payment has been marked as not paid. Your slot has not been reserved.`,
+      'Please contact the Facilitator on 0544600600 with your payment proof and correct transaction ID.',
       '',
       `For assistance, contact ${SUPPORT_PHONE}.`,
     ].join('\n'),
