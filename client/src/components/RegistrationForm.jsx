@@ -2,8 +2,8 @@ import { useState } from 'react';
 
 const API_BASE = import.meta.env.PROD ? '' : import.meta.env.VITE_API_BASE || 'http://localhost:4001';
 const MOMO_NUMBER = '0544600600';
-const USD_AMOUNT = 20;
-const USD_TO_GHS = 11.14;
+const PAYMENT_AMOUNT_GHS = 250;
+const REGISTRATION_DEADLINE = 'Sunday, June 28, 2026';
 
 export default function RegistrationForm() {
   const [form, setForm] = useState({
@@ -26,7 +26,7 @@ export default function RegistrationForm() {
   const [copyStatus, setCopyStatus] = useState('idle');
 
   const isMomo = registration ? registration.paymentMethod === 'momo' : form.paymentMethod === 'momo';
-  const amountGhs = (USD_AMOUNT * USD_TO_GHS).toFixed(2);
+  const amountGhs = PAYMENT_AMOUNT_GHS.toLocaleString('en-GH');
   const activeStep = step === 'form' ? 1 : step === 'payment' ? 2 : 3;
 
   const handleChange = (event) => {
@@ -172,12 +172,17 @@ export default function RegistrationForm() {
           </p>
           <div className="note">
             <p>
-              Payment via Momo: <strong>{MOMO_NUMBER}</strong>. This fee is USD {USD_AMOUNT}, so the amount to send in cedis is shown below. Choose <strong>Momo</strong> for online payment or <strong>cash</strong> for in-person payment.
+              The Ghana center fee is <strong>GHS {amountGhs}</strong>. Choose <strong>Momo</strong> for online payment or <strong>cash</strong> for in-person payment.
             </p>
           </div>
           <div className="note">
             <p>
-              Momo amount: <strong>GHS {amountGhs}</strong> using the current rate <strong>1 USD = GHS {USD_TO_GHS.toFixed(2)}</strong>. Make payment to {MOMO_NUMBER} to secure your spot, then submit the Momo transaction ID after payment. If you choose cash, please pay in person at the Ghana center when you arrive.
+              Registration deadline: <strong>{REGISTRATION_DEADLINE}</strong>.
+            </p>
+          </div>
+          <div className="note">
+            <p>
+              Momo amount: <strong>GHS {amountGhs}</strong>. Make payment to {MOMO_NUMBER} to secure your spot, then submit the Momo transaction ID after payment. If you choose cash, please pay <strong>GHS {amountGhs}</strong> in person at the Ghana center when you arrive.
             </p>
           </div>
         </>
@@ -328,7 +333,7 @@ export default function RegistrationForm() {
           </p>
           <div className="note">
             {registration.paymentMethod === 'cash'
-              ? 'Please pay cash in person at the Ghana center when you arrive.'
+              ? `Please pay GHS ${amountGhs} cash in person at the Ghana center when you arrive.`
               : `An admin will review your Momo payment. After confirmation, you will receive an email confirming your slot. If you need help, contact ${MOMO_NUMBER}.`}
           </div>
         </div>

@@ -4,6 +4,8 @@ const defaultRecipients = [
 ];
 
 const SUPPORT_PHONE = '0544600600';
+const PAYMENT_AMOUNT = 'GHS 250';
+const REGISTRATION_DEADLINE = 'Sunday, June 28, 2026';
 let warnedAboutMissingConfig = false;
 let deliveryStatus = {
   lastAttemptAt: null,
@@ -117,7 +119,9 @@ function registrationDetails(registration) {
     `Phone: ${registration.phone}`,
     `Church: ${registration.church}`,
     `Church role: ${registration.churchRole}`,
+    `Registration deadline: ${REGISTRATION_DEADLINE}`,
     `Payment method: ${registration.paymentMethod}`,
+    `Payment amount: ${PAYMENT_AMOUNT}`,
     `Payment status: ${registration.status}`,
     `Momo reference: ${registration.momoReference || 'Not applicable'}`,
     `Momo transaction ID: ${registration.momoTransactionId || 'Not submitted'}`,
@@ -145,8 +149,8 @@ function sendRegistrationNotification(registration, options) {
 
 function sendApplicantRegistrationReceipt(registration, options) {
   const paymentInstructions = registration.paymentMethod === 'momo'
-    ? `Complete the Momo payment to ${SUPPORT_PHONE} using reference ${registration.momoReference}, then submit your transaction ID on the registration page.`
-    : 'Your registration has been received. Please pay cash in person at the Ghana center.';
+    ? `Complete the Momo payment of ${PAYMENT_AMOUNT} to ${SUPPORT_PHONE} using reference ${registration.momoReference}, then submit your transaction ID on the registration page.`
+    : `Your registration has been received. Please pay ${PAYMENT_AMOUNT} cash in person at the Ghana center.`;
 
   return sendEmail({
     to: registration.email,
@@ -156,6 +160,7 @@ function sendApplicantRegistrationReceipt(registration, options) {
       `Hello ${registration.fullName},`,
       '',
       'Your Open School of Ministry Ghana registration has been received.',
+      `Registration deadline: ${REGISTRATION_DEADLINE}.`,
       paymentInstructions,
       '',
       `For assistance, contact ${SUPPORT_PHONE}.`,

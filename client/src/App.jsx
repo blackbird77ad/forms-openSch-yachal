@@ -64,6 +64,7 @@ export default function App() {
                 <p>Our local church, Saints Community Church, runs an internal leadership training school called Livingword Ministerial Academy (L.M.A), which is open ONLY to leaders of our local church. However, at different times in the past, we have organized "Open Classes" for church members who are not otherwise qualified for the school and for non-church members.</p>
                 <p>It is called "Open School of Ministry". It was first held in July 2015, followed by three subsequent editions, with the latest held in July 2024.</p>
                 <p>The fifth edition will be held from <strong>Monday, July 6 - Wednesday, July 8, 2026</strong>, with arrival on <strong>Sunday, July 5, 2026</strong>.</p>
+                <p>Registration deadline: <strong>Sunday, June 28, 2026</strong>.</p>
               </div>
             </details>
 

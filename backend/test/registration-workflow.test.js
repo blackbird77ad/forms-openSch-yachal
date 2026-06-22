@@ -268,6 +268,8 @@ test('emails target both admins and the applicant at each stage', async (t) => {
   assert.match(calls[5].body.subject, /not paid/i);
   assert.match(calls[5].body.text, /transaction ID/i);
   assert.match(calls[5].body.text, /0544600600/);
+  assert.match(calls[0].body.text, /Registration deadline: Sunday, June 28, 2026/);
+  assert.match(calls[1].body.text, /Registration deadline: Sunday, June 28, 2026/);
   assert.ok(calls.every((call) => call.url === 'https://api.resend.com/emails'));
 });
 

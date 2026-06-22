@@ -57,6 +57,7 @@ npm run dev
 ## Notes
 
 - Registration on the frontend is explicitly Ghana-only.
+- Registration deadline is `Sunday, June 28, 2026`.
 - Users outside Ghana should use `https://osom.saintscommunity.net/`.
-- Momo payments use `0544600600` and generate a unique reference code.
+- Momo payments are fixed at `GHS 250`, use `0544600600`, and generate a unique reference code.
 - Admin can load registrations and download a CSV from the admin panel.
