@@ -172,7 +172,7 @@ export default function RegistrationForm() {
           </p>
           <div className="note">
             <p>
-              The Ghana center fee is <strong>GHS {amountGhs}</strong>. Choose <strong>Momo</strong> for online payment or <strong>cash</strong> for in-person payment.
+              Registration fee is: <strong>GHS {amountGhs}</strong>. Choose <strong>Momo</strong> for online payment or <strong>cash</strong> for in-person payment.
             </p>
           </div>
           <div className="note">
