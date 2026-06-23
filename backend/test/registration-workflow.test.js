@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
@@ -16,6 +17,7 @@ const registrationStore = require('../services/registrationStore');
 const registrationRoutes = require('../routes/registrations');
 const adminRoutes = require('../routes/admin');
 const emailNotifier = require('../services/emailNotifier');
+const { router: resendWebhookRoutes } = require('../routes/resendWebhook');
 
 registrationStore.enableFileFallback();
 
@@ -320,4 +322,61 @@ test('admin database check exercises create, read, update, and delete', async (t
     delete: true,
   });
   assert.equal(document, null);
+});
+
+test('resend webhook accepts signed email events', async (t) => {
+  const secret = `whsec_${Buffer.from('test-webhook-secret').toString('base64')}`;
+  process.env.RESEND_WEBHOOK_SECRET = secret;
+
+  const app = express();
+  app.use('/api/webhooks/resend', resendWebhookRoutes);
+  const server = await new Promise((resolve) => {
+    const instance = app.listen(0, '127.0.0.1', () => resolve(instance));
+  });
+
+  t.after(() => {
+    delete process.env.RESEND_WEBHOOK_SECRET;
+    return new Promise((resolve) => server.close(resolve));
+  });
+
+  const body = JSON.stringify({
+    type: 'email.delivered',
+    data: {
+      email_id: 'email-test-id',
+    },
+  });
+  const svixId = 'msg_test';
+  const svixTimestamp = String(Math.floor(Date.now() / 1000));
+  const signature = crypto
+    .createHmac('sha256', Buffer.from(secret.replace('whsec_', ''), 'base64'))
+    .update(`${svixId}.${svixTimestamp}.${body}`)
+    .digest('base64');
+
+  const response = await fetch(`http://127.0.0.1:${server.address().port}/api/webhooks/resend`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'svix-id': svixId,
+      'svix-timestamp': svixTimestamp,
+      'svix-signature': `v1,${signature}`,
+    },
+    body,
+  });
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.received, true);
+  assert.equal(data.eventType, 'email.delivered');
+  assert.equal(data.signatureVerified, true);
+
+  const rejectedResponse = await fetch(`http://127.0.0.1:${server.address().port}/api/webhooks/resend`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'svix-id': svixId,
+      'svix-timestamp': svixTimestamp,
+      'svix-signature': 'v1,bad-signature',
+    },
+    body,
+  });
+  assert.equal(rejectedResponse.status, 400);
 });

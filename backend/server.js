@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const registrationRoutes = require('./routes/registrations');
 const adminRoutes = require('./routes/admin');
+const { router: resendWebhookRoutes } = require('./routes/resendWebhook');
 const {
   enableFileFallback,
   getStoreMode,
@@ -24,6 +25,7 @@ if (mongoDnsServers.length > 0) {
 }
 
 const app = express();
+app.use('/api/webhooks/resend', resendWebhookRoutes);
 app.use(express.json());
 const configuredOrigins = (process.env.CLIENT_URL || '')
   .split(',')

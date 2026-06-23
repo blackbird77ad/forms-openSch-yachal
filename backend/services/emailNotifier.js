@@ -15,6 +15,8 @@ let deliveryStatus = {
   lastSuccessAt: null,
   lastFailureAt: null,
   lastError: null,
+  lastWebhookAt: null,
+  lastWebhookType: null,
 };
 
 function getRecipients() {
@@ -98,6 +100,22 @@ function getEmailStatus() {
     recipients: getRecipients(),
     ...deliveryStatus,
   };
+}
+
+function recordWebhookEvent(event) {
+  const eventType = event?.type || 'unknown';
+  deliveryStatus.lastWebhookAt = new Date().toISOString();
+  deliveryStatus.lastWebhookType = eventType;
+
+  if (['email.delivered', 'email.sent'].includes(eventType)) {
+    deliveryStatus.lastSuccessAt = deliveryStatus.lastWebhookAt;
+    deliveryStatus.lastError = null;
+  }
+
+  if (['email.failed', 'email.bounced', 'email.complained', 'email.suppressed'].includes(eventType)) {
+    deliveryStatus.lastFailureAt = deliveryStatus.lastWebhookAt;
+    deliveryStatus.lastError = event?.data?.last_event || eventType;
+  }
 }
 
 function sendAdminTestEmail() {
@@ -237,6 +255,7 @@ function sendPaymentNotConfirmed(registration, options) {
 
 module.exports = {
   getEmailStatus,
+  recordWebhookEvent,
   sendApplicantPaymentReviewReceipt,
   sendApplicantRegistrationReceipt,
   sendAdminTestEmail,

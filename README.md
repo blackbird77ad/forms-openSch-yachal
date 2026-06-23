@@ -62,3 +62,15 @@ npm run dev
 - Momo payments are fixed at `GHS 250`, use the Yachal House Momo Number `0544600600`, and generate a unique `OpenSchoolxxx` reference code. Applicants must use the reference when transferring and submit the Momo transaction ID before registration emails are sent and admins can confirm their slot.
 - Admin can load registrations and download a CSV from the admin panel.
 - On Render, set `ADMIN_TOKEN` for dashboard access and `MONGODB_URI` to a working MongoDB connection string. If MongoDB is unavailable, the backend can fall back to local file storage so users can still submit, but MongoDB should be restored for permanent storage.
+
+## Resend Webhook
+
+Use this endpoint in the Resend dashboard:
+
+```text
+https://open-sch-yachal.onrender.com/api/webhooks/resend
+```
+
+Select these events: `email.sent`, `email.delivered`, `email.delivery_delayed`, `email.failed`, `email.bounced`, `email.complained`, and `email.suppressed`.
+
+After creating the webhook, copy its signing secret into Render as `RESEND_WEBHOOK_SECRET` and redeploy the backend.
