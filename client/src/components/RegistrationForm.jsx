@@ -73,7 +73,7 @@ export default function RegistrationForm() {
       const applicantEmailFailed = data.notifications?.applicant?.sent === false;
       setMessage(applicantEmailFailed
         ? `Your registration is saved, but the confirmation email could not be sent. Continue with the Momo steps below. For help, contact ${MOMO_NUMBER}.`
-        : 'Your Momo payment reference has been generated below. A confirmation email was also sent to you.');
+        : 'Your Momo payment reference has been generated below. Use it exactly when transferring the payment, then submit your transaction ID. A confirmation email was also sent to you.');
       setStep('payment');
     } catch (submitError) {
       setError('Unable to connect to the server.');
@@ -173,7 +173,7 @@ export default function RegistrationForm() {
           </div>
           <div className="note">
             <p>
-              Yachal House Momo Number: <strong>{MOMO_NUMBER}</strong>. Send <strong>GHS {amountGhs}</strong> to secure your spot, then submit the Momo transaction ID after payment.
+              Yachal House Momo Number: <strong>{MOMO_NUMBER}</strong>. Send <strong>GHS {amountGhs}</strong> to secure your spot. You must use your generated reference code when transferring and submit the Momo transaction ID after payment.
             </p>
           </div>
         </>
@@ -252,7 +252,7 @@ export default function RegistrationForm() {
               <span className="guide-number">1</span>
               <div>
                 <h3>Copy your payment reference</h3>
-                <p>You must use this exact reference as the payment reference when sending the Momo payment.</p>
+                <p>This reference code is very important. Use this exact reference when sending the Momo payment, otherwise we may not be able to confirm your payment or reserve your slot.</p>
                 <div className={`reference-box ${copyStatus === 'copied' ? 'copied' : ''}`}>
                   <strong>{registration.momoReference}</strong>
                   <button
@@ -276,7 +276,7 @@ export default function RegistrationForm() {
                 <h3>Make the Momo payment</h3>
                 <p>
                   Send <strong>GHS {amountGhs}</strong> to the Yachal House Momo Number <strong>{MOMO_NUMBER}</strong>. When asked for a reference,
-                  paste <strong>{registration.momoReference}</strong> so your payment can be identified.
+                  paste <strong>{registration.momoReference}</strong>. Without this reference, we may not be able to match your payment to your registration.
                 </p>
                 <div className="payment-summary">
                   <span>Yachal House Momo Number <strong>{MOMO_NUMBER}</strong></span>
@@ -289,7 +289,7 @@ export default function RegistrationForm() {
               <span className="guide-number">3</span>
               <div>
                 <h3>Submit the transaction ID</h3>
-                <p>After the payment goes through, Momo will give you a transaction ID. Enter that ID below and submit it to confirm that you have paid.</p>
+                <p>After the payment goes through, Momo will give you a transaction ID. Enter that ID below and submit it. Your slot can only be confirmed after we receive both the reference-backed payment and your transaction ID.</p>
                 <label htmlFor="transactionId">Momo Transaction ID</label>
                 <input
                   id="transactionId"

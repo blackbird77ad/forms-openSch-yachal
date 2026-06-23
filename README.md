@@ -6,7 +6,7 @@ This workspace contains a MERN stack registration app for the Ghana approved cen
 
 - `backend/` - Express API plus MongoDB registration tracking
 - `client/` - React + Vite registration form and admin dashboard
-- Unique `OpenSch-Yachalxxx` momo reference generation per email
+- Unique `OpenSchoolxxx` momo reference generation per email
 - Momo transaction submission followed by admin payment review
 - Admin payment confirmation, applicant slot email, CSV export, and status tracking
 
@@ -59,6 +59,6 @@ npm run dev
 - Registration on the frontend is explicitly Ghana-only.
 - Registration deadline is `Sunday, June 28, 2026`.
 - Users outside Ghana should use `https://osom.saintscommunity.net/`.
-- Momo payments are fixed at `GHS 250`, use the Yachal House Momo Number `0544600600`, and generate a unique reference code.
+- Momo payments are fixed at `GHS 250`, use the Yachal House Momo Number `0544600600`, and generate a unique `OpenSchoolxxx` reference code. Applicants must use the reference when transferring and submit the Momo transaction ID so admins can confirm their slot.
 - Admin can load registrations and download a CSV from the admin panel.
 - On Render, set `ADMIN_TOKEN` for dashboard access and `MONGODB_URI` to a working MongoDB connection string. If MongoDB is unavailable, the backend can fall back to local file storage so users can still submit, but MongoDB should be restored for permanent storage.

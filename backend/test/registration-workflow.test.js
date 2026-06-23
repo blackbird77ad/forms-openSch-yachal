@@ -52,6 +52,7 @@ test('Momo registration waits for admin review before becoming paid', async (t) 
   assert.equal(createdResponse.status, 201);
   const created = await createdResponse.json();
   assert.equal(created.registration.status, 'awaiting-momo-payment');
+  assert.match(created.registration.momoReference, /^OpenSchool\d{3}$/);
 
   const adminHeaders = { 'x-admin-token': process.env.ADMIN_TOKEN };
   const readResponse = await fetch(
@@ -214,7 +215,7 @@ test('emails target both admins and the applicant at each stage', async (t) => {
     church: 'Yachal House',
     churchRole: 'Member',
     paymentMethod: 'momo',
-    momoReference: 'OpenSch-Yachal123',
+    momoReference: 'OpenSchool123',
     momoTransactionId: 'TXN-123',
     status: 'momo-review-pending',
   };
@@ -228,6 +229,7 @@ test('emails target both admins and the applicant at each stage', async (t) => {
 
   const admins = ['maamekrakuezoom@gmail.com', 'blackbird77ad@gmail.com'];
   assert.deepEqual(calls[0].body.to, admins);
+  assert.ok(calls.every((call) => call.body.from === 'Yachal House <noreply@yachalhousegh.com>'));
   assert.deepEqual(calls[1].body.to, ['applicant@example.com']);
   assert.deepEqual(calls[2].body.to, admins);
   assert.deepEqual(calls[3].body.to, ['applicant@example.com']);
@@ -236,6 +238,8 @@ test('emails target both admins and the applicant at each stage', async (t) => {
   assert.match(calls[5].body.subject, /not paid/i);
   assert.match(calls[5].body.text, /transaction ID/i);
   assert.match(calls[5].body.text, /0544600600/);
+  assert.match(calls[1].body.text, /OpenSchool123/);
+  assert.match(calls[1].body.text, /reserve your slot/i);
   assert.match(calls[0].body.text, /Registration deadline: Sunday, June 28, 2026/);
   assert.match(calls[1].body.text, /Registration deadline: Sunday, June 28, 2026/);
   assert.ok(calls.every((call) => call.url === 'https://api.resend.com/emails'));

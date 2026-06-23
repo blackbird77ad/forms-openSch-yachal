@@ -12,7 +12,7 @@ async function generateOrReuseReference(email) {
   let tries = 0;
   do {
     code = String(Math.floor(100 + Math.random() * 900));
-    reference = `OpenSch-Yachal${code}`;
+    reference = `OpenSchool${code}`;
     const exists = await registrationStore.exists({ momoReference: reference });
     if (!exists) break;
     tries += 1;

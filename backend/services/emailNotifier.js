@@ -7,6 +7,7 @@ const SUPPORT_PHONE = '0544600600';
 const MOMO_ACCOUNT_LABEL = 'Yachal House Momo Number';
 const PAYMENT_AMOUNT = 'GHS 250';
 const REGISTRATION_DEADLINE = 'Sunday, June 28, 2026';
+const FROM_EMAIL = 'Yachal House <noreply@yachalhousegh.com>';
 let warnedAboutMissingConfig = false;
 let deliveryStatus = {
   lastAttemptAt: null,
@@ -26,16 +27,15 @@ function getRecipients() {
 
 function getConfig() {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL;
-  if (!apiKey || !from) {
+  if (!apiKey) {
     if (!warnedAboutMissingConfig) {
-      console.warn('Registration email notifications are disabled until RESEND_API_KEY and RESEND_FROM_EMAIL are configured.');
+      console.warn('Registration email notifications are disabled until RESEND_API_KEY is configured.');
       warnedAboutMissingConfig = true;
     }
     return null;
   }
 
-  return { apiKey, from };
+  return { apiKey, from: FROM_EMAIL };
 }
 
 async function sendEmail({ to, subject, text, idempotencyKey }) {
@@ -108,6 +108,7 @@ function sendAdminTestEmail() {
       'This is a test from the Open School of Ministry Ghana registration system.',
       '',
       'Admin email notifications are working correctly.',
+      `Emails are sent from ${FROM_EMAIL}.`,
       `For assistance, contact ${SUPPORT_PHONE}.`,
     ].join('\n'),
   });
@@ -150,7 +151,7 @@ function sendRegistrationNotification(registration, options) {
 }
 
 function sendApplicantRegistrationReceipt(registration, options) {
-  const paymentInstructions = `Complete the Momo payment of ${PAYMENT_AMOUNT} to the ${MOMO_ACCOUNT_LABEL}: ${SUPPORT_PHONE}. Use reference ${registration.momoReference}, then submit your transaction ID on the registration page.`;
+  const paymentInstructions = `Complete the Momo payment of ${PAYMENT_AMOUNT} to the ${MOMO_ACCOUNT_LABEL}: ${SUPPORT_PHONE}. Use reference ${registration.momoReference} exactly when transferring the payment, otherwise we may not be able to confirm your payment or reserve your slot. After payment, submit your Momo transaction ID on the registration page.`;
 
   return sendEmail({
     to: registration.email,
@@ -192,7 +193,7 @@ function sendApplicantPaymentReviewReceipt(registration, options) {
       `Hello ${registration.fullName},`,
       '',
       'Your form and Momo transaction ID were submitted successfully.',
-      'An admin will review your payment. After it is confirmed, you will receive another email confirming your slot.',
+      'An admin will review your payment by matching the reference code and transaction ID. After it is confirmed, you will receive another email confirming your slot.',
       '',
       `For assistance, contact ${SUPPORT_PHONE}.`,
     ].join('\n'),
