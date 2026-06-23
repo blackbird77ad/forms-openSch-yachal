@@ -98,6 +98,7 @@ export default function AdminDashboard() {
   const [emailStatus, setEmailStatus] = useState(null);
   const [testingEmail, setTestingEmail] = useState(false);
   const [resendingEmailId, setResendingEmailId] = useState('');
+  const [editingPaymentId, setEditingPaymentId] = useState('');
 
   const filteredRegistrations = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -291,6 +292,7 @@ export default function AdminDashboard() {
       setRegistrations((current) => current.map((item) => (
         item._id === data.registration._id ? data.registration : item
       )));
+      setEditingPaymentId('');
       if (data.email?.sent && isConfirmed) {
         setMessage(`${data.registration.fullName}'s payment is confirmed, their slot is reserved, and the email was sent.`);
       } else if (data.email?.sent) {
@@ -505,10 +507,14 @@ export default function AdminDashboard() {
           const paymentState = getPaymentState(item.status);
           const isPaid = paymentState === 'paid';
           const isRejected = paymentState === 'not-paid';
-          const showPaymentReview = !isPaid;
+          const isPaymentDecided = isPaid || isRejected;
+          const isEditingPayment = editingPaymentId === item._id;
+          const showPaymentReview = !isPaymentDecided || isEditingPayment;
+          const showPaymentDecision = isPaymentDecided && !isEditingPayment;
+          const hasPaymentPanel = showPaymentReview || showPaymentDecision;
 
           return (
-            <article className={`registration-card ${isPaid ? 'registration-card-paid' : isRejected ? 'registration-card-rejected' : 'registration-card-pending'} ${showPaymentReview ? 'registration-card-reviewable' : ''}`} key={item._id}>
+            <article className={`registration-card ${isPaid ? 'registration-card-paid' : isRejected ? 'registration-card-rejected' : 'registration-card-pending'} ${hasPaymentPanel ? 'registration-card-reviewable' : ''}`} key={item._id}>
               <header className="registration-card-header">
                 <div>
                   <p className="registration-number">Registration {pageStart + index + 1}</p>
@@ -555,6 +561,25 @@ export default function AdminDashboard() {
                     </div>
               </div>
 
+              {showPaymentDecision && (
+                <section className={`payment-decision-card ${isPaid ? 'payment-decision-confirmed' : 'payment-decision-rejected'}`} aria-label={`${item.fullName}'s saved payment decision`}>
+                  <div className="payment-decision-heading">
+                    <span className="payment-decision-icon" aria-hidden="true">{isPaid ? '✓' : '!'}</span>
+                    <div>
+                      <h4>{isPaid ? 'Payment confirmed' : 'Payment not confirmed'}</h4>
+                      <p>
+                        {isPaid
+                          ? 'Admin confirmed the Momo payment. The applicant has been emailed that their slot is reserved.'
+                          : 'Admin marked this payment as unsuccessful. The applicant was told to contact 0544600600 with further evidence.'}
+                      </p>
+                    </div>
+                  </div>
+                  <button className="secondary-button" type="button" onClick={() => setEditingPaymentId(item._id)}>
+                    Edit payment status
+                  </button>
+                </section>
+              )}
+
               {showPaymentReview && (
                 <section className="payment-review-box" aria-label={`Review ${item.fullName}'s payment`}>
                       <div>
@@ -564,7 +589,7 @@ export default function AdminDashboard() {
                           {item.momoTransactionId ? ` and transaction ID ${item.momoTransactionId}` : ' and the registration details'}. Click Paid only when the payment is true.
                         </p>
                       </div>
-                      <div className="payment-review-actions">
+                      <div className={`payment-review-actions ${isPaymentDecided ? 'payment-review-actions-editing' : ''}`}>
                         <button
                           className="action-button"
                           type="button"
@@ -582,6 +607,16 @@ export default function AdminDashboard() {
                         >
                           {reviewingAction === `${item._id}-not-confirmed` ? 'Saving...' : 'Not paid'}
                         </button>
+                        {isPaymentDecided && (
+                          <button
+                            className="secondary-button"
+                            type="button"
+                            onClick={() => setEditingPaymentId('')}
+                            disabled={Boolean(reviewingAction)}
+                          >
+                            Cancel edit
+                          </button>
+                        )}
                       </div>
                 </section>
               )}

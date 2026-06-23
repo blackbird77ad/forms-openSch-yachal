@@ -165,11 +165,29 @@ test('Momo registration waits for admin review before becoming paid', async (t) 
   const confirmed = await confirmResponse.json();
   assert.equal(confirmed.registration.status, 'momo-paid');
 
-  const duplicateConfirmResponse = await fetch(
-    `${baseUrl}/api/admin/registrations/${created.registration._id}/confirm-payment`,
-    { method: 'POST', headers: adminHeaders }
+  const editPaidToNotPaidResponse = await fetch(
+    `${baseUrl}/api/admin/registrations/${created.registration._id}/review-payment`,
+    {
+      method: 'POST',
+      headers: { ...adminHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decision: 'not-confirmed' }),
+    }
   );
-  assert.equal(duplicateConfirmResponse.status, 409);
+  assert.equal(editPaidToNotPaidResponse.status, 200);
+  const editedToNotPaid = await editPaidToNotPaidResponse.json();
+  assert.equal(editedToNotPaid.registration.status, 'payment-not-confirmed');
+
+  const editNotPaidToPaidResponse = await fetch(
+    `${baseUrl}/api/admin/registrations/${created.registration._id}/review-payment`,
+    {
+      method: 'POST',
+      headers: { ...adminHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decision: 'confirmed' }),
+    }
+  );
+  assert.equal(editNotPaidToPaidResponse.status, 200);
+  const editedToPaid = await editNotPaidToPaidResponse.json();
+  assert.equal(editedToPaid.registration.status, 'momo-paid');
 
   const beforeManualEmailCount = emailCalls.length;
   const manualCreatedResponse = await fetch(`${baseUrl}/api/registrations`, {
@@ -289,6 +307,9 @@ test('emails use Yachal House sender and final payment wording', async (t) => {
   const admins = ['yachalhouse@gmail.com', 'blackbird77ad@gmail.com', 'akofuaquantson85@gmail.com'];
   assert.deepEqual(calls[0].body.to, admins);
   assert.ok(calls.every((call) => call.body.from === 'Yachal House <noreply@yachalhousegh.com>'));
+  assert.ok(calls.every((call) => call.body.html.includes('#ffffff')));
+  assert.match(calls[4].body.html, /#15803d/);
+  assert.match(calls[5].body.html, /#9f1239/);
   assert.deepEqual(calls[1].body.to, ['applicant@example.com']);
   assert.deepEqual(calls[2].body.to, admins);
   assert.deepEqual(calls[3].body.to, ['applicant@example.com']);

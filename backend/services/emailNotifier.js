@@ -9,6 +9,11 @@ const MOMO_ACCOUNT_LABEL = 'Yachal House Momo Number';
 const PAYMENT_AMOUNT = 'GHS 250';
 const REGISTRATION_DEADLINE = 'Sunday, June 28, 2026';
 const FROM_EMAIL = 'Yachal House <noreply@yachalhousegh.com>';
+const BRAND_COLORS = {
+  green: '#15803d',
+  purple: '#5b21b6',
+  redwine: '#9f1239',
+};
 let warnedAboutMissingConfig = false;
 let deliveryStatus = {
   lastAttemptAt: null,
@@ -41,7 +46,79 @@ function getConfig() {
   return { apiKey, from: FROM_EMAIL };
 }
 
-async function sendEmail({ to, subject, text, idempotencyKey }) {
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function buildEmailHtml({ subject, lines, accent = 'purple' }) {
+  const accentColor = BRAND_COLORS[accent] || BRAND_COLORS.purple;
+  const content = lines.map((line) => {
+    if (!line) {
+      return '<div style="height:12px;line-height:12px">&nbsp;</div>';
+    }
+    return `<p style="margin:0 0 12px;color:#334155;font-size:15px;line-height:1.65">${escapeHtml(line)}</p>`;
+  }).join('');
+
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>${escapeHtml(subject)}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;color:#0f172a">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f8fafc;padding:28px 12px">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border:1px solid #e2e8f0;border-radius:18px;overflow:hidden">
+            <tr>
+              <td style="height:8px;background:linear-gradient(90deg,#15803d 0%,#5b21b6 54%,#9f1239 100%)"></td>
+            </tr>
+            <tr>
+              <td style="padding:26px 28px 8px">
+                <p style="margin:0 0 8px;color:${accentColor};font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase">Yachal House Ghana Center</p>
+                <h1 style="margin:0;color:#111827;font-size:24px;line-height:1.25">${escapeHtml(subject)}</h1>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 28px 8px">
+                <div style="border-left:4px solid ${accentColor};background:#ffffff;padding:2px 0 2px 16px">
+                  ${content}
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 28px 28px">
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px">
+                  <p style="margin:0;color:#475569;font-size:13px;line-height:1.6">Open School of Ministry Ghana registration support</p>
+                  <p style="margin:4px 0 0;color:#0f172a;font-size:15px;font-weight:700">0544600600</p>
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
+function sendBrandedEmail({ to, subject, lines, idempotencyKey, accent }) {
+  return sendEmail({
+    to,
+    subject,
+    text: lines.join('\n'),
+    html: buildEmailHtml({ subject, lines, accent }),
+    idempotencyKey,
+  });
+}
+
+async function sendEmail({ to, subject, text, html, idempotencyKey }) {
   const config = getConfig();
   deliveryStatus.lastAttemptAt = new Date().toISOString();
   if (!config) {
@@ -66,6 +143,7 @@ async function sendEmail({ to, subject, text, idempotencyKey }) {
           to: Array.isArray(to) ? to : [to],
           subject,
           text,
+          html,
         }),
       });
 
@@ -119,17 +197,18 @@ function recordWebhookEvent(event) {
 }
 
 function sendAdminTestEmail() {
-  return sendEmail({
+  return sendBrandedEmail({
     to: getRecipients(),
     subject: 'Open School email notifications are working',
     idempotencyKey: `admin-email-test-${Date.now()}`,
-    text: [
+    accent: 'green',
+    lines: [
       'This is a test from the Open School of Ministry Ghana registration system.',
       '',
       'Admin email notifications are working correctly.',
       `Emails are sent from ${FROM_EMAIL}.`,
       `For assistance, contact ${SUPPORT_PHONE}.`,
-    ].join('\n'),
+    ],
   });
 }
 
@@ -155,28 +234,30 @@ function createIdempotencyKey(base, options = {}) {
 }
 
 function sendRegistrationNotification(registration, options) {
-  return sendEmail({
+  return sendBrandedEmail({
     to: getRecipients(),
     subject: `New registration: ${registration.fullName}`,
     idempotencyKey: createIdempotencyKey(`registration-admin-${registration._id}`, options),
-    text: [
+    accent: 'purple',
+    lines: [
       'A new Open School of Ministry Ghana registration was submitted.',
       '',
       ...registrationDetails(registration),
       '',
       'Review registrations in the admin dashboard.',
-    ].join('\n'),
+    ],
   });
 }
 
 function sendApplicantRegistrationReceipt(registration, options) {
   const paymentSummary = `We received your Momo payment submission for ${PAYMENT_AMOUNT} to the ${MOMO_ACCOUNT_LABEL}: ${SUPPORT_PHONE}. Your reference is ${registration.momoReference} and your submitted transaction ID is ${registration.momoTransactionId || 'not provided'}. Admins will match both details before confirming your slot.`;
 
-  return sendEmail({
+  return sendBrandedEmail({
     to: registration.email,
     subject: 'Your Open School of Ministry registration was received',
     idempotencyKey: createIdempotencyKey(`registration-applicant-${registration._id}`, options),
-    text: [
+    accent: 'purple',
+    lines: [
       `Hello ${registration.fullName},`,
       '',
       'Your Open School of Ministry Ghana registration and Momo transaction ID have been received.',
@@ -184,54 +265,57 @@ function sendApplicantRegistrationReceipt(registration, options) {
       paymentSummary,
       '',
       `For assistance, contact ${SUPPORT_PHONE}.`,
-    ].join('\n'),
+    ],
   });
 }
 
 function sendMomoPaymentReviewNotification(registration, options) {
-  return sendEmail({
+  return sendBrandedEmail({
     to: getRecipients(),
     subject: `Momo payment awaiting review: ${registration.fullName}`,
     idempotencyKey: createIdempotencyKey(`payment-review-admin-${registration._id}-${registration.momoTransactionId}`, options),
-    text: [
+    accent: 'redwine',
+    lines: [
       'A Momo transaction ID has been submitted and requires admin review.',
       '',
       ...registrationDetails(registration),
       '',
       'Confirm the payment in the admin dashboard only after verifying that the payment was received.',
-    ].join('\n'),
+    ],
   });
 }
 
 function sendApplicantPaymentReviewReceipt(registration, options) {
-  return sendEmail({
+  return sendBrandedEmail({
     to: registration.email,
     subject: 'Your Momo payment is awaiting review',
     idempotencyKey: createIdempotencyKey(`payment-review-applicant-${registration._id}-${registration.momoTransactionId}`, options),
-    text: [
+    accent: 'purple',
+    lines: [
       `Hello ${registration.fullName},`,
       '',
       'Your form and Momo transaction ID were submitted successfully.',
       'An admin will review your payment by matching the reference code and transaction ID. After it is confirmed, you will receive another email confirming your slot.',
       '',
       `For assistance, contact ${SUPPORT_PHONE}.`,
-    ].join('\n'),
+    ],
   });
 }
 
 function sendSlotConfirmation(registration, options) {
-  return sendEmail({
+  return sendBrandedEmail({
     to: registration.email,
     subject: 'Your Open School of Ministry slot is confirmed',
     idempotencyKey: createIdempotencyKey(`slot-confirmed-${registration._id}`, options),
-    text: [
+    accent: 'green',
+    lines: [
       `Hello ${registration.fullName},`,
       '',
       'Your payment confirmation was successful, and your slot for the Open School of Ministry Ghana center is reserved.',
       'The Ghana center is at Yachal House, Ridge Accra.',
       '',
       `For assistance, contact ${SUPPORT_PHONE}.`,
-    ].join('\n'),
+    ],
   });
 }
 
@@ -240,18 +324,19 @@ function sendPaymentNotConfirmed(registration, options) {
     ? `Momo transaction ID ${registration.momoTransactionId}`
     : `Momo reference ${registration.momoReference || 'not provided'}`;
 
-  return sendEmail({
+  return sendBrandedEmail({
     to: registration.email,
     subject: 'Payment unsuccessful - action required',
     idempotencyKey: createIdempotencyKey(`payment-not-confirmed-${registration._id}`, options),
-    text: [
+    accent: 'redwine',
+    lines: [
       `Hello ${registration.fullName},`,
       '',
       `We could not verify your payment using ${paymentDescription}, so your payment confirmation was unsuccessful. Your slot has not been reserved.`,
       `Please contact the Facilitator on ${SUPPORT_PHONE} with further payment evidence, your Momo proof, or the correct transaction details.`,
       '',
       `For assistance, contact ${SUPPORT_PHONE}.`,
-    ].join('\n'),
+    ],
   });
 }
 
