@@ -81,8 +81,13 @@ function getRegistrationUpdates(body) {
 }
 
 router.use((req, res, next) => {
-  const adminToken = req.header('x-admin-token');
-  if (!adminToken || adminToken !== process.env.ADMIN_TOKEN) {
+  const configuredAdminToken = (process.env.ADMIN_TOKEN || '').trim();
+  if (!configuredAdminToken) {
+    return res.status(503).json({ message: 'Admin token is not configured on the server.' });
+  }
+
+  const adminToken = String(req.header('x-admin-token') || '').trim();
+  if (!adminToken || adminToken !== configuredAdminToken) {
     return res.status(401).json({ message: 'Unauthorized. Provide a valid admin token.' });
   }
   next();
