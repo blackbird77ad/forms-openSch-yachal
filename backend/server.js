@@ -34,13 +34,40 @@ const allowedOrigins = new Set([
   'http://127.0.0.1:5173',
   'https://register.yachalhousegh.com',
   'https://open-sch-yachal.pages.dev',
+  'https://forms-opensch-yachal.pages.dev',
   ...configuredOrigins,
 ]);
+
+function isAllowedOrigin(origin) {
+  if (!origin || allowedOrigins.has(origin)) {
+    return true;
+  }
+
+  try {
+    const { hostname, protocol } = new URL(origin);
+    const normalizedHostname = hostname.toLowerCase();
+    const isLocalhost = normalizedHostname === 'localhost' || normalizedHostname === '127.0.0.1';
+    if (protocol !== 'https:' && !isLocalhost) {
+      return false;
+    }
+
+    return (
+      normalizedHostname === 'yachalhousegh.com' ||
+      normalizedHostname.endsWith('.yachalhousegh.com') ||
+      normalizedHostname === 'open-sch-yachal.pages.dev' ||
+      normalizedHostname.endsWith('.open-sch-yachal.pages.dev') ||
+      normalizedHostname === 'forms-opensch-yachal.pages.dev' ||
+      normalizedHostname.endsWith('.forms-opensch-yachal.pages.dev')
+    );
+  } catch {
+    return false;
+  }
+}
 
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || allowedOrigins.has(origin)) {
+      if (isAllowedOrigin(origin)) {
         return callback(null, true);
       }
 
