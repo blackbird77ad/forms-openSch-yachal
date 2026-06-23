@@ -61,3 +61,4 @@ npm run dev
 - Users outside Ghana should use `https://osom.saintscommunity.net/`.
 - Momo payments are fixed at `GHS 250`, use the Yachal House Momo Number `0544600600`, and generate a unique reference code.
 - Admin can load registrations and download a CSV from the admin panel.
+- On Render, set `MONGODB_URI` to a working MongoDB connection string. If MongoDB is unavailable, the backend can fall back to local file storage so users can still submit, but MongoDB should be restored for permanent storage.

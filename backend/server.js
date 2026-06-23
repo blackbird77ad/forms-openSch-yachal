@@ -61,6 +61,15 @@ app.get('/', (req, res) => {
 });
 
 app.get('/api/health', async (req, res) => {
+  if (getStoreMode() === 'file') {
+    return res.json({
+      status: 'ok',
+      storage: 'file',
+      database: null,
+      warning: 'MongoDB is unavailable; using local file registration storage.',
+    });
+  }
+
   if (mongoose.connection.readyState !== 1) {
     return res.status(503).json({
       status: 'unavailable',
@@ -92,7 +101,7 @@ const PORT = process.env.PORT || 4001;
 const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/open-school-yachal';
 const defaultMongoTimeoutMs = process.env.NODE_ENV === 'production' ? 30000 : 5000;
 const mongoTimeoutMs = Number(process.env.MONGODB_TIMEOUT_MS || defaultMongoTimeoutMs);
-const canUseFileFallback = process.env.NODE_ENV !== 'production' && process.env.ENABLE_FILE_FALLBACK !== 'false';
+const canUseFileFallback = process.env.ENABLE_FILE_FALLBACK !== 'false';
 const fallbackPath = canUseFileFallback ? enableFileFallback() : null;
 
 if (fallbackPath) {

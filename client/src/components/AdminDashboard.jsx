@@ -376,7 +376,7 @@ export default function AdminDashboard() {
       {loadingStatus && <div className="note" role="status">{loadingStatus}</div>}
       {storage === 'file' && (
         <div className="storage-warning">
-          Local development is using <strong>registrations.local.json</strong>. These records will not appear in MongoDB Compass or the production admin dashboard.
+          The backend is using local file registration storage because MongoDB is not connected. New submissions can continue, but restore MongoDB as soon as possible for permanent storage.
         </div>
       )}
 
