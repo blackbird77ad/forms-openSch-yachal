@@ -20,6 +20,17 @@ const emailNotifier = require('../services/emailNotifier');
 registrationStore.enableFileFallback();
 
 test('Momo registration waits for admin review before becoming paid', async (t) => {
+  const nativeFetch = global.fetch;
+  const emailCalls = [];
+  process.env.RESEND_API_KEY = 'test-key';
+  global.fetch = async (url, options) => {
+    if (String(url) === 'https://api.resend.com/emails') {
+      emailCalls.push({ url, body: JSON.parse(options.body) });
+      return { ok: true, status: 200, json: async () => ({ id: `workflow-email-${emailCalls.length}` }) };
+    }
+    return nativeFetch(url, options);
+  };
+
   const app = express();
   app.use(express.json());
   app.use('/api/registrations', registrationRoutes);
@@ -32,6 +43,8 @@ test('Momo registration waits for admin review before becoming paid', async (t) 
   const baseUrl = `http://127.0.0.1:${address.port}`;
 
   t.after(async () => {
+    global.fetch = nativeFetch;
+    process.env.RESEND_API_KEY = '';
     await new Promise((resolve) => server.close(resolve));
     await fs.rm(localStore, { force: true });
   });
@@ -53,6 +66,7 @@ test('Momo registration waits for admin review before becoming paid', async (t) 
   const created = await createdResponse.json();
   assert.equal(created.registration.status, 'awaiting-momo-payment');
   assert.match(created.registration.momoReference, /^OpenSchool\d{3}$/);
+  assert.equal(emailCalls.length, 0, 'reference generation must not send emails');
 
   const adminHeaders = { 'x-admin-token': process.env.ADMIN_TOKEN };
   const readResponse = await fetch(
@@ -106,6 +120,10 @@ test('Momo registration waits for admin review before becoming paid', async (t) 
   assert.equal(submittedResponse.status, 200);
   const submitted = await submittedResponse.json();
   assert.equal(submitted.registration.status, 'momo-review-pending');
+  assert.equal(emailCalls.length, 4, 'final transaction ID submit sends the registration emails');
+  assert.ok(emailCalls.every((call) => call.body.from === 'Yachal House <noreply@yachalhousegh.com>'));
+  assert.deepEqual(emailCalls[0].body.to, ['yachalhouse@gmail.com', 'blackbird77ad@gmail.com', 'akofuaquantson85@gmail.com']);
+  assert.deepEqual(emailCalls[2].body.to, ['yachalhouse@gmail.com', 'blackbird77ad@gmail.com', 'akofuaquantson85@gmail.com']);
 
   const listResponse = await fetch(`${baseUrl}/api/admin/registrations`, { headers: adminHeaders });
   assert.equal(listResponse.status, 200);
@@ -189,7 +207,7 @@ test('Momo registration waits for admin review before becoming paid', async (t) 
   assert.equal(finalList.registrations.length, 0);
 });
 
-test('emails target both admins and the applicant at each stage', async (t) => {
+test('emails use Yachal House sender and final payment wording', async (t) => {
   const nativeFetch = global.fetch;
   const calls = [];
   process.env.RESEND_API_KEY = 'test-key';
@@ -239,7 +257,8 @@ test('emails target both admins and the applicant at each stage', async (t) => {
   assert.match(calls[5].body.text, /transaction ID/i);
   assert.match(calls[5].body.text, /0544600600/);
   assert.match(calls[1].body.text, /OpenSchool123/);
-  assert.match(calls[1].body.text, /reserve your slot/i);
+  assert.match(calls[1].body.text, /confirming your slot/i);
+  assert.match(calls[1].body.text, /TXN-123/);
   assert.match(calls[0].body.text, /Registration deadline: Sunday, June 28, 2026/);
   assert.match(calls[1].body.text, /Registration deadline: Sunday, June 28, 2026/);
   assert.ok(calls.every((call) => call.url === 'https://api.resend.com/emails'));

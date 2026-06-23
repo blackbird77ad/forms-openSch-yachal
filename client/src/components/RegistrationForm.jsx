@@ -70,10 +70,7 @@ export default function RegistrationForm() {
       }
 
       setRegistration(data.registration);
-      const applicantEmailFailed = data.notifications?.applicant?.sent === false;
-      setMessage(applicantEmailFailed
-        ? `Your registration is saved, but the confirmation email could not be sent. Continue with the Momo steps below. For help, contact ${MOMO_NUMBER}.`
-        : 'Your Momo payment reference has been generated below. Use it exactly when transferring the payment, then submit your transaction ID. A confirmation email was also sent to you.');
+      setMessage('Your Momo payment reference has been generated below. No emails are sent yet. Use the reference exactly when transferring the payment, then submit your transaction ID to complete the registration.');
       setStep('payment');
     } catch (submitError) {
       setError('Unable to connect to the server.');
@@ -299,9 +296,9 @@ export default function RegistrationForm() {
                   placeholder="Enter the transaction ID from Momo"
                 />
                 <button className="action-button payment-submit" type="button" onClick={handleConfirm} disabled={loading}>
-                  {loading ? 'Submitting payment...' : 'I have paid - submit transaction ID'}
+                  {loading ? 'Submitting final registration...' : 'Final submit - I have paid'}
                 </button>
-                <p className="submit-note">Only submit after the payment has gone through successfully.</p>
+                <p className="submit-note">Only submit after the payment has gone through successfully. Emails are sent after this final submit.</p>
               </div>
             </li>
           </ol>

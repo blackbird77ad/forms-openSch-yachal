@@ -152,7 +152,7 @@ function sendRegistrationNotification(registration, options) {
 }
 
 function sendApplicantRegistrationReceipt(registration, options) {
-  const paymentInstructions = `Complete the Momo payment of ${PAYMENT_AMOUNT} to the ${MOMO_ACCOUNT_LABEL}: ${SUPPORT_PHONE}. Use reference ${registration.momoReference} exactly when transferring the payment, otherwise we may not be able to confirm your payment or reserve your slot. After payment, submit your Momo transaction ID on the registration page.`;
+  const paymentSummary = `We received your Momo payment submission for ${PAYMENT_AMOUNT} to the ${MOMO_ACCOUNT_LABEL}: ${SUPPORT_PHONE}. Your reference is ${registration.momoReference} and your submitted transaction ID is ${registration.momoTransactionId || 'not provided'}. Admins will match both details before confirming your slot.`;
 
   return sendEmail({
     to: registration.email,
@@ -161,9 +161,9 @@ function sendApplicantRegistrationReceipt(registration, options) {
     text: [
       `Hello ${registration.fullName},`,
       '',
-      'Your Open School of Ministry Ghana registration has been received.',
+      'Your Open School of Ministry Ghana registration and Momo transaction ID have been received.',
       `Registration deadline: ${REGISTRATION_DEADLINE}.`,
-      paymentInstructions,
+      paymentSummary,
       '',
       `For assistance, contact ${SUPPORT_PHONE}.`,
     ].join('\n'),

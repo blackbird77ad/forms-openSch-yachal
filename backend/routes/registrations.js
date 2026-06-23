@@ -60,17 +60,10 @@ router.post('/', async (req, res) => {
 
     if (existing) {
       if (existing.paymentMethod === 'momo' && existing.status === 'awaiting-momo-payment') {
-        const notificationResults = await sendNotifications([
-          () => sendRegistrationNotification(existing),
-          () => sendApplicantRegistrationReceipt(existing),
-        ], 'existing registration');
         return res.status(200).json({
-          message: 'A momo payment reference already exists for this email.',
+          message: 'A momo payment reference already exists for this email. Complete the payment and submit the transaction ID to finish registration.',
           registration: existing,
-          notifications: {
-            admins: notificationResults[0],
-            applicant: notificationResults[1],
-          },
+          notifications: { deferredUntilTransactionId: true },
         });
       }
       return res.status(409).json({ message: 'This email is already registered.' });
@@ -92,18 +85,10 @@ router.post('/', async (req, res) => {
       status,
     });
 
-    const notificationResults = await sendNotifications([
-      () => sendRegistrationNotification(registration),
-      () => sendApplicantRegistrationReceipt(registration),
-    ], 'registration');
-
     res.status(201).json({
-      message: 'Registration created.',
+      message: 'Momo payment reference generated. Complete the payment and submit the transaction ID to finish registration.',
       registration,
-      notifications: {
-        admins: notificationResults[0],
-        applicant: notificationResults[1],
-      },
+      notifications: { deferredUntilTransactionId: true },
     });
   } catch (error) {
     sendStorageError(res, error, 'Unable to save registration.');
@@ -128,16 +113,22 @@ router.post('/confirm', async (req, res) => {
     }
 
     const notificationResults = await sendNotifications([
+      () => sendRegistrationNotification(registration),
+      () => sendApplicantRegistrationReceipt(registration),
       () => sendMomoPaymentReviewNotification(registration),
       () => sendApplicantPaymentReviewReceipt(registration),
-    ], 'payment review');
+    ], 'final registration submission');
 
     res.status(200).json({
       message: 'Form submitted successfully. Your payment is awaiting admin review.',
       registration,
       notifications: {
-        admins: notificationResults[0],
-        applicant: notificationResults[1],
+        registrationAdmins: notificationResults[0],
+        registrationApplicant: notificationResults[1],
+        paymentAdmins: notificationResults[2],
+        paymentApplicant: notificationResults[3],
+        admins: notificationResults[2],
+        applicant: notificationResults[3],
       },
     });
   } catch (error) {
