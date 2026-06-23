@@ -816,6 +816,7 @@ table td {
 }
 
 .payment-review-box {
+  position: relative;
   margin: 8px 12px 0;
   padding: 10px;
   border: 1px solid #bfdbfe;
@@ -853,9 +854,19 @@ table td {
   margin-top: 8px;
 }
 
+.payment-review-actions-single {
+  grid-template-columns: 1fr;
+}
+
 .payment-review-actions button {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  min-width: 0;
   padding: 8px;
   font-size: 0.7rem;
+  line-height: 1.2;
+  touch-action: manipulation;
 }
 
 .danger-button {
@@ -1099,7 +1110,7 @@ table td select {
   }
 }
 
-@media (max-width: 899px) {
+@media (max-width: 1199px) {
   .registration-list .registration-card {
     display: block;
   }

@@ -227,7 +227,7 @@ test('emails target both admins and the applicant at each stage', async (t) => {
   await emailNotifier.sendSlotConfirmation(registration);
   await emailNotifier.sendPaymentNotConfirmed(registration);
 
-  const admins = ['maamekrakuezoom@gmail.com', 'blackbird77ad@gmail.com'];
+  const admins = ['yachalhouse@gmail.com', 'blackbird77ad@gmail.com', 'akofuaquantson85@gmail.com'];
   assert.deepEqual(calls[0].body.to, admins);
   assert.ok(calls.every((call) => call.body.from === 'Yachal House <noreply@yachalhousegh.com>'));
   assert.deepEqual(calls[1].body.to, ['applicant@example.com']);

