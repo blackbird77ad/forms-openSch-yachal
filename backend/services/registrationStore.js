@@ -339,7 +339,7 @@ async function reviewPayment(id, decision) {
   if (mode === 'mongo') {
     const registration = await Registration.findById(id);
     if (!registration) return null;
-    if (registration.status === 'momo-paid' || registration.status === 'cash-paid') {
+    if (registration.status === 'momo-paid') {
       const error = new Error('This payment has already been confirmed.');
       error.statusCode = 409;
       throw error;
@@ -347,15 +347,13 @@ async function reviewPayment(id, decision) {
 
     if (decision === 'not-confirmed') {
       registration.status = 'payment-not-confirmed';
-    } else if (registration.paymentMethod === 'momo') {
+    } else {
       if (!registration.momoTransactionId) {
         const error = new Error('A momo transaction ID is required before payment can be confirmed.');
         error.statusCode = 409;
         throw error;
       }
       registration.status = 'momo-paid';
-    } else {
-      registration.status = 'cash-paid';
     }
 
     registration.paymentReviewedAt = new Date();
@@ -370,13 +368,13 @@ async function reviewPayment(id, decision) {
   const registrations = await readLocalRegistrations();
   const index = registrations.findIndex((item) => String(item._id) === String(id));
   if (index === -1) return null;
-  if (registrations[index].status === 'momo-paid' || registrations[index].status === 'cash-paid') {
+  if (registrations[index].status === 'momo-paid') {
     const error = new Error('This payment has already been confirmed.');
     error.statusCode = 409;
     throw error;
   }
 
-  if (decision === 'confirmed' && registrations[index].paymentMethod === 'momo' && !registrations[index].momoTransactionId) {
+  if (decision === 'confirmed' && !registrations[index].momoTransactionId) {
     const error = new Error('A momo transaction ID is required before payment can be confirmed.');
     error.statusCode = 409;
     throw error;
@@ -386,7 +384,7 @@ async function reviewPayment(id, decision) {
     ...registrations[index],
     status: decision === 'not-confirmed'
       ? 'payment-not-confirmed'
-      : registrations[index].paymentMethod === 'momo' ? 'momo-paid' : 'cash-paid',
+      : 'momo-paid',
     paymentReviewedAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };

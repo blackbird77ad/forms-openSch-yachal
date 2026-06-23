@@ -216,7 +216,7 @@ router.post('/registrations/:id/resend-email', async (req, res) => {
         () => sendApplicantPaymentReviewReceipt(registration, { force: true })
       );
     }
-    if (registration.status === 'momo-paid' || registration.status === 'cash-paid') {
+    if (registration.status === 'momo-paid') {
       emails.push(() => sendSlotConfirmation(registration, { force: true }));
     }
     if (registration.status === 'payment-not-confirmed') {

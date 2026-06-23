@@ -13,7 +13,7 @@ const RegistrationSchema = new mongoose.Schema(
       enum: ['Pastor', 'Church worker', 'Leader', 'Member', 'Other'],
     },
     attendanceType: { type: String, required: true, enum: ['ghana-center'], default: 'ghana-center' },
-    paymentMethod: { type: String, required: true, enum: ['cash', 'momo'] },
+    paymentMethod: { type: String, required: true, enum: ['momo'], default: 'momo' },
     momoReference: { type: String, unique: true, sparse: true, trim: true },
     momoTransactionId: { type: String, trim: true },
     status: {
@@ -23,8 +23,6 @@ const RegistrationSchema = new mongoose.Schema(
         'awaiting-momo-payment',
         'momo-review-pending',
         'momo-paid',
-        'cash-pending',
-        'cash-paid',
         'payment-not-confirmed',
       ],
     },

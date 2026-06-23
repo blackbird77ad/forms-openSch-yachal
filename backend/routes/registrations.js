@@ -45,11 +45,14 @@ router.post('/', async (req, res) => {
       church,
       churchRole,
       attendanceType = 'ghana-center',
-      paymentMethod,
+      paymentMethod = 'momo',
     } = req.body;
 
-    if (!fullName || !email || !phone || !paymentMethod || !church || !churchRole) {
-      return res.status(400).json({ message: 'Name, email, phone, church, church role, and payment method are required.' });
+    if (!fullName || !email || !phone || !church || !churchRole) {
+      return res.status(400).json({ message: 'Name, email, phone, church, and church role are required.' });
+    }
+    if (paymentMethod !== 'momo') {
+      return res.status(400).json({ message: 'Only Momo payment is accepted for this registration.' });
     }
 
     const normalizedEmail = String(email).trim().toLowerCase();
@@ -73,14 +76,8 @@ router.post('/', async (req, res) => {
       return res.status(409).json({ message: 'This email is already registered.' });
     }
 
-    let momoReference;
-    let status;
-    if (paymentMethod === 'momo') {
-      momoReference = await generateOrReuseReference(normalizedEmail);
-      status = 'awaiting-momo-payment';
-    } else {
-      status = 'cash-pending';
-    }
+    const momoReference = await generateOrReuseReference(normalizedEmail);
+    const status = 'awaiting-momo-payment';
 
     const registration = await registrationStore.create({
       fullName,
@@ -90,7 +87,7 @@ router.post('/', async (req, res) => {
       church,
       churchRole,
       attendanceType,
-      paymentMethod,
+      paymentMethod: 'momo',
       momoReference,
       status,
     });

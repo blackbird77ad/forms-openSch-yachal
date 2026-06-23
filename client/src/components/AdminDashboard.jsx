@@ -53,7 +53,7 @@ async function readJsonResponse(response) {
 }
 
 function getPaymentState(status) {
-  if (status === 'momo-paid' || status === 'cash-paid') return 'paid';
+  if (status === 'momo-paid') return 'paid';
   if (status === 'payment-not-confirmed') return 'not-paid';
   return 'yet-to-confirm';
 }
@@ -66,7 +66,7 @@ function formatStatus(status) {
 }
 
 function formatPaymentMethod(paymentMethod) {
-  return paymentMethod === 'momo' ? 'Mobile Money (Momo)' : 'Cash payment';
+  return paymentMethod === 'momo' ? 'Momo' : 'Payment method unavailable';
 }
 
 function formatSubmittedDate(value) {
@@ -93,7 +93,6 @@ export default function AdminDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchField, setSearchField] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [paymentFilter, setPaymentFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
   const [currentPage, setCurrentPage] = useState(1);
   const [emailStatus, setEmailStatus] = useState(null);
@@ -113,8 +112,7 @@ export default function AdminDashboard() {
         ? [item.fullName, item.email, item.church].some((value) => String(value || '').toLowerCase().includes(query))
         : String(searchableFields[searchField]?.(item) || '').toLowerCase().includes(query));
       const matchesStatus = statusFilter === 'all' || getPaymentState(item.status) === statusFilter;
-      const matchesPayment = paymentFilter === 'all' || item.paymentMethod === paymentFilter;
-      return matchesSearch && matchesStatus && matchesPayment;
+      return matchesSearch && matchesStatus;
     });
 
     return filtered.sort((a, b) => {
@@ -125,7 +123,7 @@ export default function AdminDashboard() {
       if (sortBy === 'status') return formatStatus(a.status).localeCompare(formatStatus(b.status));
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
-  }, [registrations, searchTerm, searchField, statusFilter, paymentFilter, sortBy]);
+  }, [registrations, searchTerm, searchField, statusFilter, sortBy]);
 
   const totalPages = Math.max(1, Math.ceil(filteredRegistrations.length / PAGE_SIZE));
   const pageStart = (currentPage - 1) * PAGE_SIZE;
@@ -196,7 +194,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, searchField, statusFilter, paymentFilter, sortBy]);
+  }, [searchTerm, searchField, statusFilter, sortBy]);
 
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages);
@@ -211,7 +209,6 @@ export default function AdminDashboard() {
     setSearchTerm('');
     setSearchField('all');
     setStatusFilter('all');
-    setPaymentFilter('all');
     setSortBy('newest');
   };
 
@@ -263,9 +260,7 @@ export default function AdminDashboard() {
 
   const reviewPayment = async (registration, decision) => {
     const isConfirmed = decision === 'confirmed';
-    const paymentProof = registration.paymentMethod === 'momo'
-      ? `Momo transaction ID ${registration.momoTransactionId || 'not provided'}`
-      : 'cash payment';
+    const paymentProof = `Momo transaction ID ${registration.momoTransactionId || 'not provided'}`;
     const shouldContinue = window.confirm(isConfirmed
       ? `Confirm that ${paymentProof} was received and reserve a slot for ${registration.fullName}?`
       : `Mark ${registration.fullName}'s ${paymentProof} as not received? Their slot will not be reserved.`);
@@ -442,14 +437,6 @@ export default function AdminDashboard() {
                 </select>
               </div>
               <div>
-                <label htmlFor="paymentFilter">Payment method</label>
-                <select id="paymentFilter" value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value)}>
-                  <option value="all">All methods</option>
-                  <option value="momo">Momo</option>
-                  <option value="cash">Cash</option>
-                </select>
-              </div>
-              <div>
                 <label htmlFor="sortRegistrations">Sort registrations</label>
                 <select id="sortRegistrations" value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
                   <option value="newest">Newest first</option>
@@ -572,11 +559,9 @@ export default function AdminDashboard() {
                       <div>
                         <h4>Compare the payment before changing the status</h4>
                         <p>
-                          {item.paymentMethod === 'momo'
-                            ? needsTransactionId
-                              ? 'No Momo transaction ID was submitted. Do not mark this registration as paid.'
-                              : `Check the Facilitator's phone and compare this transaction ID: ${item.momoTransactionId}`
-                            : 'Check that the cash payment was received in person, then choose Paid or Not paid.'}
+                          {needsTransactionId
+                            ? 'No Momo transaction ID was submitted. Do not mark this registration as paid.'
+                            : `Check the Facilitator's phone and compare this transaction ID: ${item.momoTransactionId}`}
                         </p>
                       </div>
                       <div className="payment-review-actions">

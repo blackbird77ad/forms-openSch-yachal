@@ -150,52 +150,20 @@ test('Momo registration waits for admin review before becoming paid', async (t) 
   );
   assert.equal(duplicateConfirmResponse.status, 409);
 
-  const cashCreatedResponse = await fetch(`${baseUrl}/api/registrations`, {
+  const unsupportedPaymentResponse = await fetch(`${baseUrl}/api/registrations`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      fullName: 'Cash Workflow Test',
-      email: 'cash-workflow@example.com',
+      fullName: 'Unsupported Payment Test',
+      email: 'unsupported-payment@example.com',
       phone: '0240000000',
       country: 'Ghana',
       church: 'Yachal House',
       churchRole: 'Member',
-      paymentMethod: 'cash',
+      paymentMethod: 'bank-transfer',
     }),
   });
-  assert.equal(cashCreatedResponse.status, 201);
-  const cashCreated = await cashCreatedResponse.json();
-  assert.equal(cashCreated.registration.status, 'cash-pending');
-
-  const cashRejectedResponse = await fetch(
-    `${baseUrl}/api/admin/registrations/${cashCreated.registration._id}/review-payment`,
-    {
-      method: 'POST',
-      headers: { ...adminHeaders, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ decision: 'not-confirmed' }),
-    }
-  );
-  assert.equal(cashRejectedResponse.status, 200);
-  const cashRejected = await cashRejectedResponse.json();
-  assert.equal(cashRejected.registration.status, 'payment-not-confirmed');
-
-  const cashConfirmedResponse = await fetch(
-    `${baseUrl}/api/admin/registrations/${cashCreated.registration._id}/review-payment`,
-    {
-      method: 'POST',
-      headers: { ...adminHeaders, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ decision: 'confirmed' }),
-    }
-  );
-  assert.equal(cashConfirmedResponse.status, 200);
-  const cashConfirmed = await cashConfirmedResponse.json();
-  assert.equal(cashConfirmed.registration.status, 'cash-paid');
-
-  const cashDeleteResponse = await fetch(
-    `${baseUrl}/api/admin/registrations/${cashCreated.registration._id}`,
-    { method: 'DELETE', headers: adminHeaders }
-  );
-  assert.equal(cashDeleteResponse.status, 200);
+  assert.equal(unsupportedPaymentResponse.status, 400);
 
   const unauthorizedDeleteResponse = await fetch(
     `${baseUrl}/api/admin/registrations/${created.registration._id}`,

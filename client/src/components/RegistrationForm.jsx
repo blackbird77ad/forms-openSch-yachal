@@ -14,7 +14,6 @@ export default function RegistrationForm() {
     churchSelection: 'yachal-house',
     otherChurchDetails: '',
     churchRole: 'Member',
-    paymentMethod: 'momo',
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -25,7 +24,6 @@ export default function RegistrationForm() {
   const [step, setStep] = useState('form');
   const [copyStatus, setCopyStatus] = useState('idle');
 
-  const isMomo = registration ? registration.paymentMethod === 'momo' : form.paymentMethod === 'momo';
   const amountGhs = PAYMENT_AMOUNT_GHS.toLocaleString('en-GH');
   const activeStep = step === 'form' ? 1 : step === 'payment' ? 2 : 3;
 
@@ -56,7 +54,7 @@ export default function RegistrationForm() {
         country: form.country,
         church,
         churchRole: form.churchRole,
-        paymentMethod: form.paymentMethod,
+        paymentMethod: 'momo',
       };
 
       const response = await fetch(`${API_BASE}/api/registrations`, {
@@ -73,17 +71,10 @@ export default function RegistrationForm() {
 
       setRegistration(data.registration);
       const applicantEmailFailed = data.notifications?.applicant?.sent === false;
-      if (data.registration.paymentMethod === 'momo') {
-        setMessage(applicantEmailFailed
-          ? `Your registration is saved, but the confirmation email could not be sent. Continue with the Momo steps below. For help, contact ${MOMO_NUMBER}.`
-          : 'Your momo payment reference has been generated below. A confirmation email was also sent to you.');
-        setStep('payment');
-      } else {
-        setMessage(applicantEmailFailed
-          ? `Registration saved, but the confirmation email could not be sent. Please pay cash in person. For help, contact ${MOMO_NUMBER}.`
-          : 'Registration saved and a confirmation email was sent. Please pay cash in person at the Ghana center when you arrive.');
-        setStep('complete');
-      }
+      setMessage(applicantEmailFailed
+        ? `Your registration is saved, but the confirmation email could not be sent. Continue with the Momo steps below. For help, contact ${MOMO_NUMBER}.`
+        : 'Your Momo payment reference has been generated below. A confirmation email was also sent to you.');
+      setStep('payment');
     } catch (submitError) {
       setError('Unable to connect to the server.');
       console.error(submitError);
@@ -172,7 +163,7 @@ export default function RegistrationForm() {
           </p>
           <div className="note">
             <p>
-              Registration fee is: <strong>GHS {amountGhs}</strong>. Choose <strong>Momo</strong> for online payment or <strong>cash</strong> for in-person payment.
+              Registration fee is: <strong>GHS {amountGhs}</strong>. Payment is by Momo only.
             </p>
           </div>
           <div className="note">
@@ -182,7 +173,7 @@ export default function RegistrationForm() {
           </div>
           <div className="note">
             <p>
-              Momo amount: <strong>GHS {amountGhs}</strong>. Make payment to {MOMO_NUMBER} to secure your spot, then submit the Momo transaction ID after payment. If you choose cash, please pay <strong>GHS {amountGhs}</strong> in person at the Ghana center when you arrive.
+              Yachal House Momo Number: <strong>{MOMO_NUMBER}</strong>. Send <strong>GHS {amountGhs}</strong> to secure your spot, then submit the Momo transaction ID after payment.
             </p>
           </div>
         </>
@@ -240,14 +231,6 @@ export default function RegistrationForm() {
               <option value="Other">Other</option>
             </select>
           </div>
-          <div>
-            <label htmlFor="paymentMethod">Payment Method</label>
-            <select id="paymentMethod" name="paymentMethod" value={form.paymentMethod} onChange={handleChange} required>
-              <option value="momo">Momo</option>
-              <option value="cash">Cash (in person)</option>
-            </select>
-          </div>
-
           <div className="actions full-width">
             <button className="action-button" type="submit" disabled={loading}>
               {loading ? 'Saving...' : 'Save and continue'}
@@ -256,7 +239,7 @@ export default function RegistrationForm() {
         </form>
       )}
 
-      {step === 'payment' && isMomo && registration?.momoReference && (
+      {step === 'payment' && registration?.momoReference && (
         <div className="next-step payment-section">
           <div className="payment-heading">
             <p className="eyebrow">Step 2 of 3</p>
@@ -292,11 +275,11 @@ export default function RegistrationForm() {
               <div>
                 <h3>Make the Momo payment</h3>
                 <p>
-                  Send <strong>GHS {amountGhs}</strong> to <strong>{MOMO_NUMBER}</strong>. When asked for a reference,
+                  Send <strong>GHS {amountGhs}</strong> to the Yachal House Momo Number <strong>{MOMO_NUMBER}</strong>. When asked for a reference,
                   paste <strong>{registration.momoReference}</strong> so your payment can be identified.
                 </p>
                 <div className="payment-summary">
-                  <span>Momo number <strong>{MOMO_NUMBER}</strong></span>
+                  <span>Yachal House Momo Number <strong>{MOMO_NUMBER}</strong></span>
                   <span>Amount <strong>GHS {amountGhs}</strong></span>
                 </div>
               </div>
@@ -332,9 +315,7 @@ export default function RegistrationForm() {
             Thank you, {registration.fullName}. Your registration for the Ghana center at Yachal House, Ridge Accra has been saved.
           </p>
           <div className="note">
-            {registration.paymentMethod === 'cash'
-              ? `Please pay GHS ${amountGhs} cash in person at the Ghana center when you arrive.`
-              : `An admin will review your Momo payment. After confirmation, you will receive an email confirming your slot. If you need help, contact ${MOMO_NUMBER}.`}
+            {`An admin will review your Momo payment. After confirmation, you will receive an email confirming your slot. If you need help, contact ${MOMO_NUMBER}.`}
           </div>
         </div>
       )}

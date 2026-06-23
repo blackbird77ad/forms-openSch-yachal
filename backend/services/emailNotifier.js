@@ -4,6 +4,7 @@ const defaultRecipients = [
 ];
 
 const SUPPORT_PHONE = '0544600600';
+const MOMO_ACCOUNT_LABEL = 'Yachal House Momo Number';
 const PAYMENT_AMOUNT = 'GHS 250';
 const REGISTRATION_DEADLINE = 'Sunday, June 28, 2026';
 let warnedAboutMissingConfig = false;
@@ -120,8 +121,9 @@ function registrationDetails(registration) {
     `Church: ${registration.church}`,
     `Church role: ${registration.churchRole}`,
     `Registration deadline: ${REGISTRATION_DEADLINE}`,
-    `Payment method: ${registration.paymentMethod}`,
+    'Payment method: Momo',
     `Payment amount: ${PAYMENT_AMOUNT}`,
+    `${MOMO_ACCOUNT_LABEL}: ${SUPPORT_PHONE}`,
     `Payment status: ${registration.status}`,
     `Momo reference: ${registration.momoReference || 'Not applicable'}`,
     `Momo transaction ID: ${registration.momoTransactionId || 'Not submitted'}`,
@@ -148,9 +150,7 @@ function sendRegistrationNotification(registration, options) {
 }
 
 function sendApplicantRegistrationReceipt(registration, options) {
-  const paymentInstructions = registration.paymentMethod === 'momo'
-    ? `Complete the Momo payment of ${PAYMENT_AMOUNT} to ${SUPPORT_PHONE} using reference ${registration.momoReference}, then submit your transaction ID on the registration page.`
-    : `Your registration has been received. Please pay ${PAYMENT_AMOUNT} cash in person at the Ghana center.`;
+  const paymentInstructions = `Complete the Momo payment of ${PAYMENT_AMOUNT} to the ${MOMO_ACCOUNT_LABEL}: ${SUPPORT_PHONE}. Use reference ${registration.momoReference}, then submit your transaction ID on the registration page.`;
 
   return sendEmail({
     to: registration.email,
@@ -216,9 +216,7 @@ function sendSlotConfirmation(registration, options) {
 }
 
 function sendPaymentNotConfirmed(registration, options) {
-  const paymentDescription = registration.paymentMethod === 'momo'
-    ? `Momo transaction ID ${registration.momoTransactionId || 'not provided'}`
-    : 'cash payment';
+  const paymentDescription = `Momo transaction ID ${registration.momoTransactionId || 'not provided'}`;
 
   return sendEmail({
     to: registration.email,
@@ -228,7 +226,7 @@ function sendPaymentNotConfirmed(registration, options) {
       `Hello ${registration.fullName},`,
       '',
       `We could not verify your ${paymentDescription}, so your payment has been marked as not paid. Your slot has not been reserved.`,
-      'Please contact the Facilitator on 0544600600 with your payment proof and correct transaction ID.',
+      `Please contact the Facilitator on ${SUPPORT_PHONE} with your Momo payment proof and correct transaction ID.`,
       '',
       `For assistance, contact ${SUPPORT_PHONE}.`,
     ].join('\n'),
