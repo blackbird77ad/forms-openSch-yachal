@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const API_BASE = import.meta.env.PROD ? '' : import.meta.env.VITE_API_BASE || 'http://localhost:4001';
+const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.PROD ? '' : 'http://localhost:4001');
 const MOMO_NUMBER = '0544600600';
 const PAYMENT_AMOUNT_GHS = 250;
 const REGISTRATION_DEADLINE = 'Sunday, June 28, 2026';

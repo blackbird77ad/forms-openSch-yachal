@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-const API_BASE = import.meta.env.PROD ? '' : import.meta.env.VITE_API_BASE || 'http://localhost:4001';
+const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.PROD ? '' : 'http://localhost:4001');
 const ADMIN_TOKEN_KEY = 'open-school-admin-token';
 const ADMIN_VIEW_KEY = 'open-school-admin-view-v2';
 const RETRYABLE_STATUSES = new Set([502, 503, 504]);
