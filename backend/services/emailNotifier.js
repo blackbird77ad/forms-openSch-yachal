@@ -227,7 +227,7 @@ function sendSlotConfirmation(registration, options) {
     text: [
       `Hello ${registration.fullName},`,
       '',
-      'Your payment has been confirmed and your slot for the Open School of Ministry Ghana center is reserved.',
+      'Your payment confirmation was successful, and your slot for the Open School of Ministry Ghana center is reserved.',
       'The Ghana center is at Yachal House, Ridge Accra.',
       '',
       `For assistance, contact ${SUPPORT_PHONE}.`,
@@ -236,17 +236,19 @@ function sendSlotConfirmation(registration, options) {
 }
 
 function sendPaymentNotConfirmed(registration, options) {
-  const paymentDescription = `Momo transaction ID ${registration.momoTransactionId || 'not provided'}`;
+  const paymentDescription = registration.momoTransactionId
+    ? `Momo transaction ID ${registration.momoTransactionId}`
+    : `Momo reference ${registration.momoReference || 'not provided'}`;
 
   return sendEmail({
     to: registration.email,
-    subject: 'Payment marked as not paid - action required',
+    subject: 'Payment unsuccessful - action required',
     idempotencyKey: createIdempotencyKey(`payment-not-confirmed-${registration._id}`, options),
     text: [
       `Hello ${registration.fullName},`,
       '',
-      `We could not verify your ${paymentDescription}, so your payment has been marked as not paid. Your slot has not been reserved.`,
-      `Please contact the Facilitator on ${SUPPORT_PHONE} with your Momo payment proof and correct transaction ID.`,
+      `We could not verify your payment using ${paymentDescription}, so your payment confirmation was unsuccessful. Your slot has not been reserved.`,
+      `Please contact the Facilitator on ${SUPPORT_PHONE} with further payment evidence, your Momo proof, or the correct transaction details.`,
       '',
       `For assistance, contact ${SUPPORT_PHONE}.`,
     ].join('\n'),

@@ -171,6 +171,39 @@ test('Momo registration waits for admin review before becoming paid', async (t) 
   );
   assert.equal(duplicateConfirmResponse.status, 409);
 
+  const beforeManualEmailCount = emailCalls.length;
+  const manualCreatedResponse = await fetch(`${baseUrl}/api/registrations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      fullName: 'Manual Review Test',
+      email: 'manual-review@example.com',
+      phone: '0240000001',
+      country: 'Ghana',
+      church: 'Yachal House',
+      churchRole: 'Member',
+      paymentMethod: 'momo',
+    }),
+  });
+  assert.equal(manualCreatedResponse.status, 201);
+  const manualCreated = await manualCreatedResponse.json();
+  assert.equal(manualCreated.registration.status, 'awaiting-momo-payment');
+  assert.equal(emailCalls.length, beforeManualEmailCount, 'manual reference generation must not send emails');
+
+  const manualConfirmResponse = await fetch(
+    `${baseUrl}/api/admin/registrations/${manualCreated.registration._id}/review-payment`,
+    {
+      method: 'POST',
+      headers: { ...adminHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decision: 'confirmed' }),
+    }
+  );
+  assert.equal(manualConfirmResponse.status, 200);
+  const manualConfirmed = await manualConfirmResponse.json();
+  assert.equal(manualConfirmed.registration.status, 'momo-paid');
+  assert.equal(emailCalls.length, beforeManualEmailCount + 1, 'manual paid confirmation sends the slot email');
+  assert.match(emailCalls[emailCalls.length - 1].body.text, /payment confirmation was successful/i);
+
   const unsupportedPaymentResponse = await fetch(`${baseUrl}/api/registrations`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -197,6 +230,12 @@ test('Momo registration waits for admin review before becoming paid', async (t) 
     { method: 'DELETE', headers: adminHeaders }
   );
   assert.equal(deleteResponse.status, 200);
+
+  const manualDeleteResponse = await fetch(
+    `${baseUrl}/api/admin/registrations/${manualCreated.registration._id}`,
+    { method: 'DELETE', headers: adminHeaders }
+  );
+  assert.equal(manualDeleteResponse.status, 200);
 
   const missingResponse = await fetch(
     `${baseUrl}/api/admin/registrations/${created.registration._id}`,
@@ -255,9 +294,11 @@ test('emails use Yachal House sender and final payment wording', async (t) => {
   assert.deepEqual(calls[3].body.to, ['applicant@example.com']);
   assert.deepEqual(calls[4].body.to, ['applicant@example.com']);
   assert.deepEqual(calls[5].body.to, ['applicant@example.com']);
-  assert.match(calls[5].body.subject, /not paid/i);
+  assert.match(calls[4].body.text, /payment confirmation was successful/i);
+  assert.match(calls[5].body.subject, /unsuccessful/i);
   assert.match(calls[5].body.text, /transaction ID/i);
   assert.match(calls[5].body.text, /0544600600/);
+  assert.match(calls[5].body.text, /further payment evidence/i);
   assert.match(calls[1].body.text, /OpenSchool123/);
   assert.match(calls[1].body.text, /confirming your slot/i);
   assert.match(calls[1].body.text, /TXN-123/);

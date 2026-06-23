@@ -260,10 +260,12 @@ export default function AdminDashboard() {
 
   const reviewPayment = async (registration, decision) => {
     const isConfirmed = decision === 'confirmed';
-    const paymentProof = `Momo transaction ID ${registration.momoTransactionId || 'not provided'}`;
+    const paymentProof = registration.momoTransactionId
+      ? `Momo transaction ID ${registration.momoTransactionId}`
+      : `Momo reference ${registration.momoReference || 'not provided'}`;
     const shouldContinue = window.confirm(isConfirmed
-      ? `Confirm that ${paymentProof} was received and reserve a slot for ${registration.fullName}?`
-      : `Mark ${registration.fullName}'s ${paymentProof} as not received? Their slot will not be reserved.`);
+      ? `Confirm that ${paymentProof} matches the Momo notification and reserve a slot for ${registration.fullName}?`
+      : `Mark ${registration.fullName}'s payment as not received after checking ${paymentProof}? Their slot will not be reserved.`);
     if (!shouldContinue) return;
 
     setReviewingAction(`${registration._id}-${decision}`);
@@ -503,7 +505,6 @@ export default function AdminDashboard() {
           const paymentState = getPaymentState(item.status);
           const isPaid = paymentState === 'paid';
           const isRejected = paymentState === 'not-paid';
-          const needsTransactionId = item.paymentMethod === 'momo' && !item.momoTransactionId;
           const showPaymentReview = !isPaid;
 
           return (
@@ -555,34 +556,31 @@ export default function AdminDashboard() {
               </div>
 
               {showPaymentReview && (
-                <section className={`payment-review-box ${needsTransactionId ? 'payment-review-waiting' : ''}`} aria-label={`Review ${item.fullName}'s payment`}>
+                <section className="payment-review-box" aria-label={`Review ${item.fullName}'s payment`}>
                       <div>
                         <h4>Compare the payment before changing the status</h4>
                         <p>
-                          {needsTransactionId
-                            ? 'No Momo transaction ID was submitted yet. You can mark this registration as not paid, or wait for the applicant to submit the transaction ID before marking it as paid.'
-                            : `Check the Facilitator's phone and compare this transaction ID: ${item.momoTransactionId}`}
+                          Match the Momo notification against reference {item.momoReference || 'not provided'}
+                          {item.momoTransactionId ? ` and transaction ID ${item.momoTransactionId}` : ' and the registration details'}. Click Paid only when the payment is true.
                         </p>
                       </div>
-                      <div className={`payment-review-actions ${needsTransactionId ? 'payment-review-actions-single' : ''}`}>
-                        {!needsTransactionId && (
-                          <button
-                            className="action-button"
-                            type="button"
-                            onClick={() => reviewPayment(item, 'confirmed')}
-                            disabled={Boolean(reviewingAction)}
-                            title="Mark payment as paid and reserve the slot."
-                          >
-                            {reviewingAction === `${item._id}-confirmed` ? 'Saving...' : 'Paid'}
-                          </button>
-                        )}
+                      <div className="payment-review-actions">
+                        <button
+                          className="action-button"
+                          type="button"
+                          onClick={() => reviewPayment(item, 'confirmed')}
+                          disabled={Boolean(reviewingAction)}
+                          title="Mark payment as paid and reserve the slot."
+                        >
+                          {reviewingAction === `${item._id}-confirmed` ? 'Saving...' : 'Paid'}
+                        </button>
                         <button
                           className="danger-button"
                           type="button"
                           onClick={() => reviewPayment(item, 'not-confirmed')}
                           disabled={Boolean(reviewingAction)}
                         >
-                          {reviewingAction === `${item._id}-not-confirmed` ? 'Saving...' : needsTransactionId ? 'Mark not paid' : 'Not paid'}
+                          {reviewingAction === `${item._id}-not-confirmed` ? 'Saving...' : 'Not paid'}
                         </button>
                       </div>
                 </section>

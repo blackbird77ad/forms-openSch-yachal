@@ -348,11 +348,6 @@ async function reviewPayment(id, decision) {
     if (decision === 'not-confirmed') {
       registration.status = 'payment-not-confirmed';
     } else {
-      if (!registration.momoTransactionId) {
-        const error = new Error('A momo transaction ID is required before payment can be confirmed.');
-        error.statusCode = 409;
-        throw error;
-      }
       registration.status = 'momo-paid';
     }
 
@@ -370,12 +365,6 @@ async function reviewPayment(id, decision) {
   if (index === -1) return null;
   if (registrations[index].status === 'momo-paid') {
     const error = new Error('This payment has already been confirmed.');
-    error.statusCode = 409;
-    throw error;
-  }
-
-  if (decision === 'confirmed' && !registrations[index].momoTransactionId) {
-    const error = new Error('A momo transaction ID is required before payment can be confirmed.');
     error.statusCode = 409;
     throw error;
   }
