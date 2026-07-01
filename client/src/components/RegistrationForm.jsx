@@ -5,7 +5,7 @@ const MOMO_NUMBER = '0544600600';
 const PAYMENT_AMOUNT_GHS = 250;
 const REGISTRATION_DEADLINE = 'Sunday, June 28, 2026';
 
-export default function RegistrationForm() {
+export default function RegistrationForm({ onViewAccommodation = () => {} }) {
   const [form, setForm] = useState({
     fullName: '',
     email: '',
@@ -313,6 +313,11 @@ export default function RegistrationForm() {
           </p>
           <div className="note">
             {`An admin will review your Momo payment. After confirmation, you will receive an email confirming your slot. If you need help, contact ${MOMO_NUMBER}.`}
+          </div>
+          <div className="actions">
+            <button className="action-button" type="button" onClick={onViewAccommodation}>
+              View accommodation options
+            </button>
           </div>
         </div>
       )}

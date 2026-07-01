@@ -1,10 +1,22 @@
 import { useEffect, useState } from 'react';
 import RegistrationForm from './components/RegistrationForm';
 import AdminDashboard from './components/AdminDashboard';
+import AccommodationOptions from './components/AccommodationOptions';
 
 function getViewFromLocation() {
   const adminHashes = new Set(['#/admin', '#admin']);
-  return adminHashes.has(window.location.hash) || window.location.pathname.endsWith('/admin') ? 'admin' : 'register';
+  const accommodationHashes = new Set(['#/accommodation', '#accommodation']);
+
+  if (adminHashes.has(window.location.hash) || window.location.pathname.endsWith('/admin')) return 'admin';
+  if (accommodationHashes.has(window.location.hash) || window.location.pathname.endsWith('/accommodation')) {
+    return 'accommodation';
+  }
+
+  return 'register';
+}
+
+function getPortalBasePath() {
+  return window.location.pathname.replace(/\/(admin|accommodation)\/?$/, '/') || '/';
 }
 
 export default function App() {
@@ -14,16 +26,26 @@ export default function App() {
     const handleLocationChange = () => setView(getViewFromLocation());
 
     window.addEventListener('hashchange', handleLocationChange);
+    window.addEventListener('popstate', handleLocationChange);
     handleLocationChange();
 
-    return () => window.removeEventListener('hashchange', handleLocationChange);
+    return () => {
+      window.removeEventListener('hashchange', handleLocationChange);
+      window.removeEventListener('popstate', handleLocationChange);
+    };
   }, []);
 
   const showAdmin = view === 'admin';
+  const showAccommodation = view === 'accommodation';
 
   function showRegistrationForm() {
-    window.history.pushState(null, '', `${window.location.pathname}${window.location.search}`);
+    window.history.pushState(null, '', `${getPortalBasePath()}${window.location.search}`);
     setView('register');
+  }
+
+  function showAccommodationOptions() {
+    window.history.pushState(null, '', `${getPortalBasePath()}${window.location.search}#/accommodation`);
+    setView('accommodation');
   }
 
   return (
@@ -43,17 +65,31 @@ export default function App() {
         <div>
           <p className="eyebrow">Ghana Registration Portal</p>
         </div>
-        {showAdmin && (
-          <div className="nav-buttons">
+        <div className="nav-buttons">
+          {!showAdmin && (
+            <>
+              <button className={!showAccommodation ? 'active' : ''} type="button" onClick={showRegistrationForm}>
+                Registration
+              </button>
+              <button className={showAccommodation ? 'active' : ''} type="button" onClick={showAccommodationOptions}>
+                Accommodation
+              </button>
+            </>
+          )}
+          {showAdmin && (
             <button type="button" onClick={showRegistrationForm}>
               Registration form
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </header>
 
       <main>
-        {!showAdmin ? (
+        {showAdmin ? (
+          <AdminDashboard />
+        ) : showAccommodation ? (
+          <AccommodationOptions />
+        ) : (
           <>
             <details className="panel about-section">
               <summary>
@@ -68,10 +104,8 @@ export default function App() {
               </div>
             </details>
 
-            <RegistrationForm />
+            <RegistrationForm onViewAccommodation={showAccommodationOptions} />
           </>
-        ) : (
-          <AdminDashboard />
         )}
       </main>
     </div>
